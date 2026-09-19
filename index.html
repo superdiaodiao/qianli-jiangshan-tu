@@ -412,6 +412,26 @@ for(let i=0;i<NT;i++){
   im.addEventListener("load",()=>{im.classList.add("on");loaded++;updateBar();startMasks();});
   plate.appendChild(im); tiles.push({el:im,src:"t"+String(i).padStart(2,"0")+".jpg",set:false,off:false});
 }
+/* 高清贴图：原扫描件 2674×1600 一片，只有放大时才去取 */
+const hi=[];
+for(let i=0;i<NT;i++){
+  const im=document.createElement("img");
+  im.alt=""; im.decoding="async"; im.draggable=false;
+  im.addEventListener("load",()=>{im.classList.add("on");});
+  plate.appendChild(im); hi.push({el:im,src:"h"+String(i).padStart(2,"0")+".jpg",set:false,off:false});
+}
+function ensureHi(){
+  const want=S.zoomTo>1||S.zoom>1.02, tw=DW/NT, m=stageW*.4;
+  for(let i=0;i<NT;i++){
+    const l=i*tw, h=hi[i];
+    const near=l+tw>S.x-m && l<S.x+stageW+m;
+    if(want&&near){ if(!h.set){h.set=true;h.el.src=h.src;} }
+    else if(h.set && (!want || l+tw<S.x-stageW*3 || l>S.x+stageW*4)){
+      /* 放回原大小或走远就卸掉，别让手机扛着几十兆解码后的位图 */
+      h.set=false; h.el.classList.remove("on"); h.el.removeAttribute("src");
+    }
+  }
+}
 let loaded=0;
 function updateBar(){
   const b=$("#bar"),need=tiles.filter(t=>t.set).length||1;
@@ -437,10 +457,11 @@ function layout(){
   scale=(stageH/ART_H)*S.zoom;
   DW=ART_W*scale; DH=ART_H*scale;
   const tw=DW/NT;
-  for(let i=0;i<NT;i++){const e=tiles[i].el;e.style.width=(tw+1)+"px";e.style.height=DH+"px";}
+  for(let i=0;i<NT;i++){const e=tiles[i].el,g=hi[i].el;
+    e.style.width=g.style.width=(tw+1)+"px"; e.style.height=g.style.height=DH+"px";}
   maxX=Math.max(0,DW-stageW); maxY=Math.max(0,DH-stageH);
   offY=DH<stageH?(stageH-DH)/2:0;
-  clamp(); ensureTiles(); applyScroll();
+  clamp(); ensureTiles(); ensureHi(); applyScroll();
 }
 function clamp(){
   S.x=Math.max(0,Math.min(maxX,S.x));
@@ -452,9 +473,14 @@ function applyScroll(){
   baseLayer.style.backgroundPosition=(-S.x)+"px "+ty+"px";
   for(let i=0;i<NT;i++){
     const t=tiles[i],x=i*tw-S.x;
-    if(x>stageW+2||x+tw<-2){if(!t.off){t.el.style.visibility="hidden";t.off=true;}continue;}
-    if(t.off){t.el.style.visibility="";t.off=false;}
-    t.el.style.transform="translate3d("+x+"px,"+ty+"px,0)";
+    const g=hi[i];
+    if(x>stageW+2||x+tw<-2){
+      if(!t.off){t.el.style.visibility="hidden";g.el.style.visibility="hidden";t.off=true;}
+      continue;
+    }
+    if(t.off){t.el.style.visibility="";g.el.style.visibility="";t.off=false;}
+    const tr="translate3d("+x+"px,"+ty+"px,0)";
+    t.el.style.transform=tr; g.el.style.transform=tr;
   }
   const w=Math.max(1.2,stageW/DW*100);
   mapBox.style.left=(S.x/DW*100)+"%"; mapBox.style.width=w+"%";
@@ -1034,7 +1060,7 @@ function step(dt){
     layout();
     S.x=cx*DW-stageW/2; S.y=cy*DH-stageH/2;
   }
-  clamp(); applyScroll(); ensureTiles();
+  clamp(); applyScroll(); ensureTiles(); ensureHi();
 
   G=grade(); applyGrade();
 
