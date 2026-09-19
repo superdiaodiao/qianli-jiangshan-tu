@@ -22,6 +22,8 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 #viewport.dragging{cursor:grabbing}
 #plateWrap{position:absolute;inset:0;overflow:hidden;filter:saturate(1) brightness(1)}
 #plate{position:absolute;inset:0;background:#8d7d55}
+#baseLayer{position:absolute;inset:0;background-image:url(base.jpg);background-repeat:no-repeat;opacity:0;transition:opacity .5s ease;will-change:background-position}
+#baseLayer.on{opacity:1}
 #plate img{position:absolute;top:0;left:0;display:block;max-width:none;max-height:none;image-rendering:auto;opacity:0;transition:opacity .45s ease}
 #plate img.on{opacity:1}
 #gradeMul,#gradeScr{position:absolute;inset:0;pointer-events:none}
@@ -167,7 +169,7 @@ body.demo .pressed{background:rgba(201,169,105,.42)!important;color:#fff!importa
 
 <div id="app">
   <div id="viewport">
-    <div id="plateWrap"><div id="plate"></div></div>
+    <div id="plateWrap"><div id="plate"><div id="baseLayer"></div></div></div>
     <div id="gradeMul"></div>
     <div id="gradeScr"></div>
     <canvas id="fx"></canvas>
@@ -293,6 +295,7 @@ const S={x:0,y:0,zoom:1,tod:.30,todAuto:false,tour:false,t:0,vx:0,drag:false,
 let SN=null,WX=null;
 let stageW=0,stageH=0,DW=0,DH=0,maxX=0,maxY=0,offY=0,scale=1,dpr=1;
 const viewport=$("#viewport"),plate=$("#plate"),plateWrap=$("#plateWrap"),fx=$("#fx"),ctx=fx.getContext("2d");
+const baseLayer=$("#baseLayer");
 const gMul=$("#gradeMul"),gScr=$("#gradeScr"),poiLayer=$("#poiLayer"),mapBox=$("#mapBox"),mapWrap=$("#mapWrap");
 
 /* ===== 折线工具 ===== */
@@ -349,10 +352,15 @@ function loadMask(src,cb){
   img.src=src;
 }
 let A_LAND=null;
-loadMask("mask.png",(d,w,h)=>{maskData=d;maskW=w;maskH=h;maskOK=true;
-  A_WATER=chanAlpha(d,w,h,0);A_LAND=chanAlpha(d,w,h,1);});
-loadMask("mask2.png",(d,w,h)=>{m2Data=d;m2W=w;m2H=h;m2OK=true;
-  A_SNOW=chanAlpha(d,w,h,0);A_VEG=chanAlpha(d,w,h,1);});
+/* 掩膜共 300KB，让贴图先抢到带宽：首片到位后（或 4 秒兜底）再取 */
+let masksStarted=false;
+function startMasks(){
+  if(masksStarted)return; masksStarted=true;
+  loadMask("mask.png",(d,w,h)=>{maskData=d;maskW=w;maskH=h;maskOK=true;
+    A_WATER=chanAlpha(d,w,h,0);A_LAND=chanAlpha(d,w,h,1);});
+  loadMask("mask2.png",(d,w,h)=>{m2Data=d;m2W=w;m2H=h;m2OK=true;});
+}
+setTimeout(startMasks,4000);
 function waterAt(u,v){
   if(!maskOK)return 0;
   const x=(u/AU*maskW)|0, y=(v/AV*maskH)|0;
@@ -394,11 +402,14 @@ function drawMaskLayer(c,cv,alpha){              // 把整卷蒙版里“当前�
 }
 
 /* ===== 贴图 ===== */
+const baseIm=new Image();
+baseIm.onload=()=>{baseLayer.classList.add("on");};
+baseIm.src="base.jpg";
 const tiles=[];
 for(let i=0;i<NT;i++){
   const im=document.createElement("img");
   im.alt=""; im.decoding="async"; im.draggable=false;
-  im.addEventListener("load",()=>{im.classList.add("on");loaded++;updateBar();});
+  im.addEventListener("load",()=>{im.classList.add("on");loaded++;updateBar();startMasks();});
   plate.appendChild(im); tiles.push({el:im,src:"t"+String(i).padStart(2,"0")+".jpg",set:false,off:false});
 }
 let loaded=0;
@@ -437,6 +448,8 @@ function clamp(){
 }
 function applyScroll(){
   const tw=DW/NT, ty=offY-S.y;
+  baseLayer.style.backgroundSize=DW+"px "+DH+"px";
+  baseLayer.style.backgroundPosition=(-S.x)+"px "+ty+"px";
   for(let i=0;i<NT;i++){
     const t=tiles[i],x=i*tw-S.x;
     if(x>stageW+2||x+tw<-2){if(!t.off){t.el.style.visibility="hidden";t.off=true;}continue;}
