@@ -245,12 +245,13 @@ class Engine {
       for (let i = 0; i < n; i++) this.walkers.push({ w: wi, d: w.total * ((i + 0.3) / n), sp: 1.8 + Math.random() * 2.2, dir: Math.random() < 0.5 ? 1 : -1, ph: Math.random() * 6.28 });
     });
     this.flashTimer = 6; this.flashSeq = null; this.flashT = 0; this.flashA = 0;
+    // 远层要读得出"远"：更密、更细短、更慢、稍淡；近层疏而粗快
     this.LAY = [
-      { a: 0, n: 760, p: 0.50, sz: 0.55, spd: 0.68, dim: 0.52 },
-      { a: 760, n: 560, p: 1.0, sz: 1.0, spd: 1.0, dim: 0.85 },
-      { a: 1320, n: 330, p: 1.85, sz: 1.85, spd: 1.55, dim: 1.0 },
+      { a: 0, n: 980, p: 0.45, sz: 0.40, spd: 0.55, dim: 0.62 },
+      { a: 980, n: 560, p: 1.0, sz: 1.0, spd: 1.0, dim: 0.85 },
+      { a: 1540, n: 330, p: 1.85, sz: 1.85, spd: 1.55, dim: 1.0 },
     ];
-    this.POOL = 1650;
+    this.POOL = 1870;
   }
   ensureDrops() {
     if (this.drops.length) return;
@@ -733,23 +734,27 @@ class Engine {
       }
       c.globalAlpha = 1;
     } else {
-      c.strokeStyle = 'rgba(' + cr + ',' + (0.34 * L.dim * (0.42 + pr * 0.58)).toFixed(3) + ')';
+      // 同层雨丝分两批画，亮度错开三成：整层一个透明度会整齐得发假
+      const aBase = 0.34 * L.dim * (0.42 + pr * 0.58);
       c.lineWidth = Math.max(0.6, this.stageH * 0.0013 * L.sz);
-      c.beginPath();
-      for (let i = L.a; i < L.a + cnt; i++) {
-        const d = this.drops[i];
-        // 帧间拖尾：雨丝向上一帧的位置延伸，相邻帧首尾相接。
-        // 否则雨滴逐帧跳跃 + 视觉暂留 = 每根雨丝拖一个"重影"（截图单帧看不出）
-        const fy = dt * (0.70 + d.s * 0.85) * (0.55 + pr * 0.75) * L.spd;
-        const fx = dt * slant * 0.30 * L.spd;
-        d.y += fy; d.x += fx;
-        if (d.y > 1) d.y -= 1; if (d.x > 1) d.x -= 1; if (d.x < 0) d.x += 1;
-        const x = fmod(d.x * spanX + ox, spanX) - spanX * 0.115, y = fmod(d.y * spanY + oy, spanY) - spanY * 0.10;
-        const len = this.stageH * (0.020 + d.s * 0.034) * (0.5 + pr * 0.8) * L.sz;
-        c.moveTo(x - fx * spanX, y - fy * spanY);
-        c.lineTo(x + slant * len * 0.85, y + len);
+      for (let pass = 0; pass < 2; pass++) {
+        c.strokeStyle = 'rgba(' + cr + ',' + (aBase * (pass ? 1.15 : 0.7)).toFixed(3) + ')';
+        c.beginPath();
+        for (let i = L.a + pass; i < L.a + cnt; i += 2) {
+          const d = this.drops[i];
+          // 帧间拖尾：雨丝向上一帧的位置延伸，相邻帧首尾相接。
+          // 否则雨滴逐帧跳跃 + 视觉暂留 = 每根雨丝拖一个"重影"（截图单帧看不出）
+          const fy = dt * (0.70 + d.s * 0.85) * (0.55 + pr * 0.75) * L.spd;
+          const fx = dt * slant * 0.30 * L.spd;
+          d.y += fy; d.x += fx;
+          if (d.y > 1) d.y -= 1; if (d.x > 1) d.x -= 1; if (d.x < 0) d.x += 1;
+          const x = fmod(d.x * spanX + ox, spanX) - spanX * 0.115, y = fmod(d.y * spanY + oy, spanY) - spanY * 0.10;
+          const len = this.stageH * (0.020 + d.s * 0.034) * (0.5 + pr * 0.8) * L.sz;
+          c.moveTo(x - fx * spanX, y - fy * spanY);
+          c.lineTo(x + slant * len * 0.85, y + len);
+        }
+        c.stroke();
       }
-      c.stroke();
     }
   }
   drawPrecipFar(c, dt) {
@@ -766,8 +771,10 @@ class Engine {
     fc.clearRect(0, 0, this.stageW, this.stageH);
     this.drawLayerP(fc, dt, this.LAY[0], pr, this.SN.snowy > 0.5);
     if (this.A_LAND) {
+      // 山体范围只擦七成：山前仍留一层薄雨幕（隔雨看山），
+      // 全擦的话竖屏视野大半是山，远雨就"消失"了，整场雨都糊在近处
       fc.globalCompositeOperation = 'destination-out';
-      this.drawMaskLayer(fc, this.A_LAND, 1);
+      this.drawMaskLayer(fc, this.A_LAND, 0.7);
       fc.globalCompositeOperation = 'source-over';
     }
     c.drawImage(this.fxFar, 0, 0, w, h, 0, 0, this.stageW, this.stageH);

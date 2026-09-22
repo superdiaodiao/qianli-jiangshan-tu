@@ -9,10 +9,10 @@
     <view class="bar" style="width:{{barPct}}%;opacity:{{barPct>=100?0:1}}"></view>
 
     <!-- 同一元素上 catchtouchend 会吞掉自身的 tap 合成，动作直接挂在 touchend 上 -->
-    <view class="backBtn serif" catchtouchstart="noop" catchtouchmove="noop"
+    <view class="backBtn serif" style="top:{{uiTop}}px" catchtouchstart="noop" catchtouchmove="noop"
       catchtouchend="goBack" catchtap="goBack">⟨ 画廊</view>
 
-    <view class="fabs">
+    <view class="fabs" style="top:{{fabTop}}px">
       <view class="fab serif {{soundOn?'on':''}}" catchtouchstart="noop" catchtouchmove="noop"
         catchtouchend="onSoundTap" catchtap="onSoundTap">音</view>
       <view class="fab serif" catchtouchstart="noop" catchtouchmove="noop"
