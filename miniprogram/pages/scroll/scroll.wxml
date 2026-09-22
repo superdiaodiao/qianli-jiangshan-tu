@@ -70,14 +70,7 @@
           <view class="segBtn serif {{mode===0?'on':''}}" data-m="0" bindtap="onMode">晴</view>
           <view class="segBtn serif {{mode===1?'on':''}}" data-m="1" bindtap="onMode">雨</view>
           <view class="segBtn serif {{mode===2?'on':''}}" data-m="2" bindtap="onMode">雪</view>
-        </view>
-      </view>
-      <view class="segBlock">
-        <text class="segLabel serif">岚</text>
-        <view class="seg">
-          <view class="segBtn serif {{mistIdx===0?'on':''}}" data-m="0" bindtap="onMistSeg">无</view>
-          <view class="segBtn serif {{mistIdx===1?'on':''}}" data-m="1" bindtap="onMistSeg">淡</view>
-          <view class="segBtn serif {{mistIdx===2?'on':''}}" data-m="2" bindtap="onMistSeg">浓</view>
+          <view class="segBtn serif {{mode===3?'on':''}}" data-m="3" bindtap="onMode">岚</view>
         </view>
       </view>
     </view>

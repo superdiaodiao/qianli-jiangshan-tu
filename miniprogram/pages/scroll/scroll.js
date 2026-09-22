@@ -13,7 +13,6 @@ Page({
     introShow: true, introGone: false, hintGone: false,
     cardOn: false, cardT: '', cardD: '', activePoi: -1,
     panelHidden: false,
-    mistIdx: 1,
   },
 
   onLoad(q) {
@@ -107,11 +106,6 @@ Page({
   onAuto() { if (this.engine) this.engine.setAuto(!this.engine.S.todAuto); },
   onTour() { if (this.engine) { this.engine.startTour(); this.hideIntro(); } },
   onZoom() { if (this.engine) this.engine.cycleZoom(); },
-  onMistSeg(e) {
-    const idx = +e.currentTarget.dataset.m;
-    this.setData({ mistIdx: idx });
-    if (this.engine) this.engine.setMist([0, 1, 1.9][idx]);
-  },
   onMode(e) {
     const m = +e.currentTarget.dataset.m;
     if (this.engine) { this.engine.setMode(m); this.hideIntro(); }

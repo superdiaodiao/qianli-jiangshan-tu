@@ -381,11 +381,20 @@ class Engine {
   }
   weather() {
     const w = this.S.wet;
+    if (this.S.mode === 3)   // 岚：无降水，浓时天色微沉
+      return { overcast: smooth01(w, 0, 0.6) * 0.5, precip: 0, storm: 0 };
     return { overcast: smooth01(w, 0, 0.38), precip: smooth01(w, 0.30, 1), storm: smooth01(w, 0.74, 1) };
   }
   wetLabel() {
     const w = this.S.wet;
     if (this.S.mode === 0) return w < 0.3 ? '晴' : '阴';
+    if (this.S.mode === 3) {
+      if (w < 0.06) return '岚起';
+      if (w < 0.30) return '轻岚';
+      if (w < 0.56) return '淡霭';
+      if (w < 0.78) return '浓雾';
+      return '深霭';
+    }
     const sn = this.S.mode === 2;
     if (w < 0.06) return '将雨';
     if (w < 0.30) return sn ? '疏雪' : '疏雨';
@@ -616,9 +625,11 @@ class Engine {
     }
   }
   drawMist(c, dt) {
-    // MIST_BOOST：空濛气质的画（如落花诗意图）整体抬雾量；mistLevel：用户三档开关
+    // MIST_BOOST：空濛气质的画（如落花诗意图）整体抬雾量；
+    // 岚天候（mode 3）时雾量由强度滑杆驱动，与雨雪共用一根杆
+    const lvl = this.S.mode === 3 ? 0.45 + this.S.wet * 2.6 : 1;
     const amt = this.G.mist * this.SN.mist * (1 + this.WX.precip * 0.85 + this.WX.overcast * 0.35)
-      * (this.geo.MIST_BOOST || 1) * (this.mistLevel === undefined ? 1 : this.mistLevel);
+      * (this.geo.MIST_BOOST || 1) * lvl;
     if (amt < 0.03) return;
     c.globalCompositeOperation = 'lighter';
     for (const p of this.puffs) {
@@ -1155,7 +1166,6 @@ class Engine {
     this.panT = null;
     this.onUI({ zoomLabel: this.S.zoomTo === 1 ? '放大' : (this.S.zoomTo === ZOOMS[ZOOMS.length - 1] ? '复原' : '再放大'), zoomOn: this.S.zoomTo > 1 });
   }
-  setMist(k) { this.mistLevel = k; }
   setMode(m) {
     this.S.mode = m;
     if (m === 0) this.S.wet = 0;
