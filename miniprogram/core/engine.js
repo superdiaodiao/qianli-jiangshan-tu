@@ -219,8 +219,9 @@ class Engine {
     this.flocks = []; this.birdTimer = 2;
     this.puffs = [];
     // 云气分三层：远雾贴山脊、中霭、近岚（大而淡、飘得快），各自的尺寸疏密不同
-    // 雾要连成带不能成团：数量足、单团宽而扁、透明度低（短卷保底 36 颗）
-    const puffN = Math.max(36, Math.round(this.AU / 140));
+    // 雾团铺满全卷、以"屏内十几团"为密度基准：手机竖屏只看到长卷一小段，
+    // 按画幅宽度稀疏配置的话（旧值 AU/140）屏内平均只剩 1 团，等于没雾
+    const puffN = Math.max(36, Math.round(this.AU / 16));
     for (let i = 0; i < puffN; i++) {
       const band = i % 3, r = Math.random();
       this.puffs.push({ u: Math.random() * this.AU, band,
@@ -625,13 +626,34 @@ class Engine {
     }
   }
   drawMist(c, dt) {
-    // MIST_BOOST：空濛气质的画（如落花诗意图）整体抬雾量；
-    // 岚天候（mode 3）时雾量由强度滑杆驱动，与雨雪共用一根杆
-    const lvl = this.S.mode === 3 ? 0.45 + this.S.wet * 2.6 : 1;
-    const amt = this.G.mist * this.SN.mist * (1 + this.WX.precip * 0.85 + this.WX.overcast * 0.35)
-      * (this.geo.MIST_BOOST || 1) * lvl;
+    // MIST_BOOST：空濛气质的画（如落花诗意图）整体抬雾量。
+    // 岚天候（mode 3）：滑杆是雾量的主宰，时辰只做轻微调制——
+    // 否则正午 0.2 的时辰雾量系数会把滑杆整段吃掉，拉到骤也看不见
+    let amt;
+    if (this.S.mode === 3) {
+      amt = (0.4 + this.S.wet * 1.9) * (this.geo.MIST_BOOST || 1) * (0.7 + this.G.mist * 0.6);
+    } else {
+      amt = this.G.mist * this.SN.mist * (1 + this.WX.precip * 0.85 + this.WX.overcast * 0.35)
+        * (this.geo.MIST_BOOST || 1);
+    }
     if (amt < 0.03) return;
     c.globalCompositeOperation = 'lighter';
+    // 底幔：沿山脊线起伏的三条连续雾带（确定性，不靠随机雾团的运气），
+    // 分段拼接、段间重叠，成带不成团；随机雾团在其上叠出流动质感
+    const BANDS = [[6, 14, 1.0], [26, 20, 0.8], [50, 26, 0.55]];
+    const segW = this.stageW / 6;
+    for (let b = 0; b < BANDS.length; b++) {
+      const dv = BANDS[b][0], hh = this.PX(BANDS[b][1]), aa = BANDS[b][2];
+      for (let s = -1; s <= 7; s++) {
+        const x = (s + 0.5) * segW;
+        const u = (this.S.x + x) / this.DW * this.AU;
+        if (u < -20 || u > this.AU + 20) continue;
+        const y = this.SY(this.horizonAt(Math.max(0, Math.min(this.AU, u))) + dv)
+          + Math.sin(this.S.t * 0.2 + b * 2.1 + u * 0.03) * this.PX(1.6);
+        c.globalAlpha = Math.min(0.10, amt * 0.035 * aa);
+        c.drawImage(this.SP_PUFF, x - segW * 1.2, y - hh / 2, segW * 2.4, hh);
+      }
+    }
     for (const p of this.puffs) {
       p.u += dt * p.sp * 7 * this.windNow;
       if (p.u > this.AU + 120) p.u = -120; if (p.u < -160) p.u = this.AU + 120;
@@ -640,7 +662,7 @@ class Engine {
       const bob = Math.sin(this.S.t * 0.25 + p.u * 0.05) * this.PX(2) * (p.band === 2 ? 1.5 : 1);
       const y = this.SY(this.horizonAt(p.u) + p.dv) + bob;
       const w = this.PX(46 * p.sc), h = this.PX(8 * p.sc) * (p.band === 2 ? 0.75 : 1);
-      c.globalAlpha = Math.min(0.12, amt * p.a * 0.07);
+      c.globalAlpha = Math.min(0.16, amt * p.a * 0.085);
       c.drawImage(this.SP_PUFF, x - w / 2, y - h / 2, w, h);
     }
     c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
