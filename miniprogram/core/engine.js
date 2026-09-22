@@ -637,20 +637,28 @@ class Engine {
         * (this.geo.MIST_BOOST || 1);
     }
     if (amt < 0.03) return;
+    // 浓雾的本体是空气：先铺一层随雾量增长的全屏薄纱压对比度
+    // （晴午 amt≈0.2、晓雾 amt≈1 时趋近于零，只有拉高滑杆才显）
+    const haze = Math.max(0, Math.min(0.16, (amt - 0.9) * 0.12));
+    if (haze > 0.005) {
+      c.fillStyle = 'rgba(228,230,226,' + haze.toFixed(3) + ')';
+      c.fillRect(0, 0, this.stageW, this.stageH);
+    }
     c.globalCompositeOperation = 'lighter';
     // 底幔：沿山脊线起伏的三条连续雾带（确定性，不靠随机雾团的运气），
     // 分段拼接、段间重叠，成带不成团；随机雾团在其上叠出流动质感
+    const thick = 0.8 + Math.min(1.6, amt) * 0.45;   // 浓时带更厚
     const BANDS = [[6, 14, 1.0], [26, 20, 0.8], [50, 26, 0.55]];
     const segW = this.stageW / 6;
     for (let b = 0; b < BANDS.length; b++) {
-      const dv = BANDS[b][0], hh = this.PX(BANDS[b][1]), aa = BANDS[b][2];
+      const dv = BANDS[b][0], hh = this.PX(BANDS[b][1]) * thick, aa = BANDS[b][2];
       for (let s = -1; s <= 7; s++) {
         const x = (s + 0.5) * segW;
         const u = (this.S.x + x) / this.DW * this.AU;
         if (u < -20 || u > this.AU + 20) continue;
         const y = this.SY(this.horizonAt(Math.max(0, Math.min(this.AU, u))) + dv)
           + Math.sin(this.S.t * 0.2 + b * 2.1 + u * 0.03) * this.PX(1.6);
-        c.globalAlpha = Math.min(0.10, amt * 0.035 * aa);
+        c.globalAlpha = Math.min(0.13, amt * 0.05 * aa);
         c.drawImage(this.SP_PUFF, x - segW * 1.2, y - hh / 2, segW * 2.4, hh);
       }
     }
