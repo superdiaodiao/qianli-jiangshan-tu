@@ -41,7 +41,8 @@ class Engine {
     this.AU = g.AU; this.AV = g.AV; this.NT = g.NT;
     this.ART_W = g.ART_W; this.ART_H = g.ART_H;
 
-    this.S = { x: 0, y: 0, zoom: 1, tod: 0.30, todAuto: false, tour: false, t: 0,
+    this.S = { x: 0, y: 0, zoom: 1, tod: opts.tod !== undefined ? opts.tod : 0.30,
+      todAuto: false, tour: false, t: 0,
       vx: 0, drag: false, mode: 0, wet: 0, zoomTo: 1 };
     this.stageW = 1; this.stageH = 1; this.DW = 0; this.DH = 0;
     this.maxX = 0; this.maxY = 0; this.offY = 0;

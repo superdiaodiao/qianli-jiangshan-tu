@@ -4,6 +4,20 @@ const { Engine } = require('../../core/engine.js');
 const { Ambience } = require('../../core/ambience.js');
 const { AUDIO_BASE } = require('../../config.js');
 
+/* 四时随真实时间：打开画就是此刻的光线。
+   5 点=晓(0)，12 点=午(.30)，18 点=暮(.60)，22 点=夜(.84)，次日 5 点回晓 */
+function todFromClock() {
+  const d = new Date();
+  let h = d.getHours() + d.getMinutes() / 60;
+  if (h < 5) h += 24;
+  const pts = [[5, 0], [12, 0.30], [18, 0.60], [22, 0.84], [29, 1]];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1];
+    if (h >= a[0] && h <= b[0]) return a[1] + (b[1] - a[1]) * (h - a[0]) / (b[0] - a[0]);
+  }
+  return 0.30;
+}
+
 Page({
   data: {
     title: '', artist: '', meta: '', thumb: '',
@@ -43,6 +57,7 @@ Page({
         this.engine = new Engine({
           canvas, dpr,
           geo: this.geo,
+          tod: todFromClock(),
           assetBase: this.painting.engine.assetBase,
           onUI: st => this.applyUI(st),
           onMap: (l, w) => this.setData({ mapLeft: l, mapWidth: w }),
