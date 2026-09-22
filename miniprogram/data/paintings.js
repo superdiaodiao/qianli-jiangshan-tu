@@ -64,4 +64,19 @@ module.exports = [
       geo: 'luohua-geo',
     },
   },
+  {
+    id: 'yule',
+    title: '渔乐图',
+    artist: '吴伟',
+    era: '明',
+    status: 'ready',
+    tags: ['渔隐', '浙派', '竖轴'],
+    line: '一湾浩渺，渔舟点点 —— 山愈险，水愈闲',
+    meta: '绢本设色\n纵二七〇厘米\n横一七三·五厘米\n明\n今藏故宫博物院',
+    thumb: ASSET_BASE + 'yule/mini.jpg',
+    engine: {
+      assetBase: ASSET_BASE + 'yule/',
+      geo: 'yule-geo',
+    },
+  },
 ];
