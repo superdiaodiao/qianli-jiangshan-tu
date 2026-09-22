@@ -1,7 +1,7 @@
 const paintings = require('../../data/paintings.js');
 
 Page({
-  data: { paintings },
+  data: { paintings: paintings.filter(p => !p.hidden) },
   onOpen(e) {
     const { id, status } = e.currentTarget.dataset;
     if (status !== 'ready') {

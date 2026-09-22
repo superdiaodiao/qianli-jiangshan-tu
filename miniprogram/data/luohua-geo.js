@@ -67,4 +67,4 @@ const POIS = [
 
 module.exports = { AU, AV, NT, ART_W, ART_H, HORIZON, LANES, BASE, CHIMNEYS, WALKS,
   NBRIDGE, FALLS, POIS, TOD, GROUND, PETALS, FISH, SNOWLINES,
-  HAS_HI: false, ZOOMS: [1, 1.6, 2.4], BG: '#cdc4ac', MIST_BOOST: 1.7 };
+  HAS_HI: false, ZOOMS: [1, 1.6, 2.4], BG: '#cdc4ac', MIST_BOOST: 1.15 };

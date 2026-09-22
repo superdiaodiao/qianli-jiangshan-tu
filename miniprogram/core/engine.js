@@ -643,24 +643,9 @@ class Engine {
     const amt = this.G.mist * this.SN.mist * (1 + this.WX.precip * 0.85 + this.WX.overcast * 0.35)
       * (this.geo.MIST_BOOST || 1);
     if (amt < 0.03) return;
+    // 只用软雾团，不铺连续雾带：横条底幔在浅色画面上会成烟熏条纹
+    // （它本为已下线的岚天候而生），晓暮的氛围感由雾团的疏密自然给出
     c.globalCompositeOperation = 'lighter';
-    // 底幔：沿山脊线起伏的三条连续雾带（确定性，不靠随机雾团的运气），
-    // 分段拼接、段间重叠，成带不成团；随机雾团在其上叠出流动质感
-    const thick = 0.8 + Math.min(1.6, amt) * 0.45;   // 浓时带更厚
-    const BANDS = [[6, 14, 1.0], [26, 20, 0.8], [50, 26, 0.55]];
-    const segW = this.stageW / 6;
-    for (let b = 0; b < BANDS.length; b++) {
-      const dv = BANDS[b][0], hh = this.PX(BANDS[b][1]) * thick, aa = BANDS[b][2];
-      for (let s = -1; s <= 7; s++) {
-        const x = (s + 0.5) * segW;
-        const u = (this.S.x + x) / this.DW * this.AU;
-        if (u < -20 || u > this.AU + 20) continue;
-        const y = this.SY(this.horizonAt(Math.max(0, Math.min(this.AU, u))) + dv)
-          + Math.sin(this.S.t * 0.2 + b * 2.1 + u * 0.03) * this.PX(1.6);
-        c.globalAlpha = Math.min(0.13, amt * 0.05 * aa);
-        c.drawImage(this.SP_PUFF, x - segW * 1.2, y - hh / 2, segW * 2.4, hh);
-      }
-    }
     for (const p of this.puffs) {
       p.u += dt * p.sp * 7 * this.windNow;
       if (p.u > this.AU + 120) p.u = -120; if (p.u < -160) p.u = this.AU + 120;
@@ -669,7 +654,7 @@ class Engine {
       const bob = Math.sin(this.S.t * 0.25 + p.u * 0.05) * this.PX(2) * (p.band === 2 ? 1.5 : 1);
       const y = this.SY(this.horizonAt(p.u) + p.dv) + bob;
       const w = this.PX(46 * p.sc), h = this.PX(8 * p.sc) * (p.band === 2 ? 0.75 : 1);
-      c.globalAlpha = Math.min(0.16, amt * p.a * 0.085);
+      c.globalAlpha = Math.min(0.10, amt * p.a * 0.07);
       c.drawImage(this.SP_PUFF, x - w / 2, y - h / 2, w, h);
     }
     c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';

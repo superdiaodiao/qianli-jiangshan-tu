@@ -21,6 +21,7 @@ module.exports = [
   },
   {
     id: 'xiaoxia',
+    hidden: true,   // 用户观感投票：近白描的清淡不入画廊；素材与配置保留，去掉此行即恢复
     title: '消夏图',
     artist: '刘贯道',
     era: '元',
@@ -36,6 +37,7 @@ module.exports = [
   },
   {
     id: 'songfeng',
+    hidden: true,   // 同上：绢色暗沉不入画廊；去掉此行即恢复
     title: '静听松风图',
     artist: '马麟',
     era: '南宋',
