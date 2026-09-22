@@ -8,16 +8,17 @@
 
     <view class="bar" style="width:{{barPct}}%;opacity:{{barPct>=100?0:1}}"></view>
 
-    <!-- 同一元素上 catchtouchend 会吞掉自身的 tap 合成，动作直接挂在 touchend 上 -->
-    <view class="backBtn serif" style="top:{{uiTop}}px" catchtouchstart="noop" catchtouchmove="noop"
-      catchtouchend="goBack" catchtap="goBack">⟨ 画廊</view>
+    <!-- 画布开始绘制后可能压在普通 view 之上（开发者工具里尤甚），
+         常驻按钮用 cover-view 保证在最上层；动作挂 touchend，tap 兜底，JS 里防抖 -->
+    <cover-view class="backBtn" style="top:{{uiTop}}px" catchtouchstart="noop" catchtouchmove="noop"
+      catchtouchend="goBack" catchtap="goBack">⟨ 画廊</cover-view>
 
-    <view class="fabs" style="top:{{fabTop}}px">
-      <view class="fab serif {{soundOn?'on':''}}" catchtouchstart="noop" catchtouchmove="noop"
-        catchtouchend="onSoundTap" catchtap="onSoundTap">音</view>
-      <view class="fab serif" catchtouchstart="noop" catchtouchmove="noop"
-        catchtouchend="onSnapTap" catchtap="onSnapTap">存</view>
-    </view>
+    <cover-view class="fabs" style="top:{{fabTop}}px">
+      <cover-view class="fab {{soundOn?'on':''}}" catchtouchstart="noop" catchtouchmove="noop"
+        catchtouchend="onSoundTap" catchtap="onSoundTap">音</cover-view>
+      <cover-view class="fab" catchtouchstart="noop" catchtouchmove="noop"
+        catchtouchend="onSnapTap" catchtap="onSnapTap">存</cover-view>
+    </cover-view>
 
     <view class="intro {{introGone?'gone':''}}" wx:if="{{introShow}}" bindtap="hideIntro">
       <view class="introBox">

@@ -246,12 +246,13 @@ class Engine {
     });
     this.flashTimer = 6; this.flashSeq = null; this.flashT = 0; this.flashA = 0;
     // 远层要读得出"远"：更密、更细短、更慢、稍淡；近层疏而粗快
+    // 远层细短慢淡、近层稀疏；总量克制，雨是氛围不是帘子
     this.LAY = [
-      { a: 0, n: 980, p: 0.45, sz: 0.40, spd: 0.55, dim: 0.62 },
-      { a: 980, n: 560, p: 1.0, sz: 1.0, spd: 1.0, dim: 0.85 },
-      { a: 1540, n: 330, p: 1.85, sz: 1.85, spd: 1.55, dim: 1.0 },
+      { a: 0, n: 520, p: 0.45, sz: 0.45, spd: 0.60, dim: 0.60 },
+      { a: 520, n: 300, p: 1.0, sz: 1.0, spd: 1.0, dim: 0.80 },
+      { a: 820, n: 110, p: 1.85, sz: 1.6, spd: 1.45, dim: 0.85 },
     ];
-    this.POOL = 1870;
+    this.POOL = 930;
   }
   ensureDrops() {
     if (this.drops.length) return;
@@ -734,24 +735,26 @@ class Engine {
       }
       c.globalAlpha = 1;
     } else {
-      // 同层雨丝分两批画，亮度错开三成：整层一个透明度会整齐得发假
+      // 雨丝必须沿自身速度方向画。旧写法里横向速度按 spanX、纵向按 spanY 归一化，
+      // 竖屏下实际运动近乎垂直，雨丝却斜画——逐帧平移出一排平行重影。
+      // 这里先求像素速度，雨丝即速度方向上的一段，长度不短于一帧位移。
       const aBase = 0.34 * L.dim * (0.42 + pr * 0.58);
       c.lineWidth = Math.max(0.6, this.stageH * 0.0013 * L.sz);
+      const fdt = Math.max(dt, 1 / 60);
       for (let pass = 0; pass < 2; pass++) {
         c.strokeStyle = 'rgba(' + cr + ',' + (aBase * (pass ? 1.15 : 0.7)).toFixed(3) + ')';
         c.beginPath();
         for (let i = L.a + pass; i < L.a + cnt; i += 2) {
           const d = this.drops[i];
-          // 帧间拖尾：雨丝向上一帧的位置延伸，相邻帧首尾相接。
-          // 否则雨滴逐帧跳跃 + 视觉暂留 = 每根雨丝拖一个"重影"（截图单帧看不出）
-          const fy = dt * (0.70 + d.s * 0.85) * (0.55 + pr * 0.75) * L.spd;
-          const fx = dt * slant * 0.30 * L.spd;
-          d.y += fy; d.x += fx;
+          const vy = this.stageH * (0.95 + d.s * 1.1) * (0.55 + pr * 0.75) * L.spd;   // px/s
+          const vx = vy * slant * 0.28;
+          d.y += vy * dt / spanY; d.x += vx * dt / spanX;
           if (d.y > 1) d.y -= 1; if (d.x > 1) d.x -= 1; if (d.x < 0) d.x += 1;
           const x = fmod(d.x * spanX + ox, spanX) - spanX * 0.115, y = fmod(d.y * spanY + oy, spanY) - spanY * 0.10;
-          const len = this.stageH * (0.020 + d.s * 0.034) * (0.5 + pr * 0.8) * L.sz;
-          c.moveTo(x - fx * spanX, y - fy * spanY);
-          c.lineTo(x + slant * len * 0.85, y + len);
+          const v = Math.hypot(vx, vy);
+          const len = Math.max(this.stageH * (0.018 + d.s * 0.026) * (0.6 + pr * 0.6) * L.sz, v * fdt * 1.2);
+          c.moveTo(x - vx / v * len, y - vy / v * len);
+          c.lineTo(x, y);
         }
         c.stroke();
       }
