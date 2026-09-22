@@ -164,7 +164,13 @@ class Engine {
         c.fillStyle = g; c.fillRect(x, y, 1.1, L);
       }
     });
+    this.SP_FLAKE = sprite(24, 24, (c, w) => {
+      const g = c.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+      g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(255,255,255,.55)');
+      g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, w, w);
+    });
     this._lamp = null; this._tintC = null; this._tintKey = '';
+    this._flakeC = null; this._flakeKey = '';
   }
   lampSprite() {
     if (this._lamp) return this._lamp;
@@ -174,6 +180,18 @@ class Engine {
       g.addColorStop(1, 'rgba(255,160,60,0)'); c.fillStyle = g; c.fillRect(0, 0, w, w);
     });
     return this._lamp;
+  }
+  tintedFlake(col) {
+    const q = v => Math.round(v / 8) * 8;
+    const key = q(col[0]) + ',' + q(col[1]) + ',' + q(col[2]);
+    if (key === this._flakeKey) return this._flakeC;
+    this._flakeKey = key;
+    const SP = this.SP_FLAKE;
+    this._flakeC = sprite(24, 24, (c, w) => {
+      c.drawImage(SP, 0, 0); c.globalCompositeOperation = 'source-in';
+      c.fillStyle = 'rgb(' + key + ')'; c.fillRect(0, 0, w, w);
+    });
+    return this._flakeC;
   }
   tintedGlint(col) {
     const q = v => Math.round(v / 8) * 8;
@@ -201,15 +219,16 @@ class Engine {
     this.flocks = []; this.birdTimer = 2;
     this.puffs = [];
     // 云气分三层：远雾贴山脊、中霭、近岚（大而淡、飘得快），各自的尺寸疏密不同
-    // 总数与旧版持平（千里江山约 53 颗），短卷保底 18 颗
-    const puffN = Math.max(18, Math.round(this.AU / 140));
+    // 雾要连成带不能成团：数量足、单团宽而扁、透明度低（短卷保底 36 颗）
+    const puffN = Math.max(36, Math.round(this.AU / 140));
     for (let i = 0; i < puffN; i++) {
       const band = i % 3, r = Math.random();
       this.puffs.push({ u: Math.random() * this.AU, band,
-        dv: band === 0 ? -20 + r * 30 : band === 1 ? 5 + r * 40 : 30 + r * 42,
-        sc: band === 0 ? 0.6 + r * 1.0 : band === 1 ? 1.4 + r * 1.2 : 2.4 + r * 1.6,
+        // 全部压在脊线下方：飘上天的雾在平坦纸面上会成一粒粒亮团
+        dv: band === 0 ? -2 + r * 24 : band === 1 ? 12 + r * 40 : 34 + r * 42,
+        sc: band === 0 ? 1.0 + r * 1.2 : band === 1 ? 1.6 + r * 1.3 : 2.6 + r * 1.6,
         sp: (0.25 + Math.random() * 0.85) * (band === 2 ? 1.5 : band === 1 ? 1 : 0.7),
-        a: (0.55 + Math.random() * 0.6) * (band === 0 ? 1.2 : band === 1 ? 0.85 : 0.5) });
+        a: (0.55 + Math.random() * 0.6) * (band === 0 ? 0.9 : band === 1 ? 0.8 : 0.5) });
     }
     this.petals = []; this.petalCarry = 0;
     this.fish = []; this.fishInit = false;
@@ -445,10 +464,28 @@ class Engine {
   }
   drawGlints(c, dt) {
     if (!this.maskOK) return;
+    // 屏内水面很小时（如短卷的一线溪流），波光数量要跟着水面占比封顶，
+    // 否则整池波光挤进一小块水域，亮成一片抓痕
+    this._wfT = (this._wfT || 0) - dt;
+    if (this._wfT <= 0) {
+      this._wfT = 2;
+      let hit = 0;
+      for (let i = 0; i < 60; i++) {
+        const u = (this.S.x + Math.random() * this.stageW) / this.DW * this.AU;
+        const v = Math.random() * this.AV;
+        if (this.waterAt(u, v) > 0.82) hit++;
+      }
+      this._glintMax = Math.round(12 + (hit / 60) * 420);
+    }
+    let live = 0;
+    for (const g of this.glints) if (g.live) live++;
     c.globalCompositeOperation = 'lighter';
     const col = this.G.gcol, base = this.G.glint;
     for (const g of this.glints) {
-      if (!g.live) { if (Math.random() < 0.4) this.seedGlint(g); continue; }
+      if (!g.live) {
+        if (live < (this._glintMax || 230) && Math.random() < 0.4) { this.seedGlint(g); if (g.live) live++; }
+        continue;
+      }
       g.ph += dt * g.sp; g.u += dt * 2.4 * this.windNow;
       if (g.ph >= 1) { g.live = false; continue; }
       const x = this.SX(g.u), y = this.SY(g.v);
@@ -579,7 +616,9 @@ class Engine {
     }
   }
   drawMist(c, dt) {
-    const amt = this.G.mist * this.SN.mist * (1 + this.WX.precip * 0.85 + this.WX.overcast * 0.35);
+    // MIST_BOOST：空濛气质的画（如落花诗意图）整体抬雾量；mistLevel：用户三档开关
+    const amt = this.G.mist * this.SN.mist * (1 + this.WX.precip * 0.85 + this.WX.overcast * 0.35)
+      * (this.geo.MIST_BOOST || 1) * (this.mistLevel === undefined ? 1 : this.mistLevel);
     if (amt < 0.03) return;
     c.globalCompositeOperation = 'lighter';
     for (const p of this.puffs) {
@@ -587,9 +626,10 @@ class Engine {
       if (p.u > this.AU + 120) p.u = -120; if (p.u < -160) p.u = this.AU + 120;
       const x = this.SX(p.u);
       if (x < -260 || x > this.stageW + 260) continue;
-      const y = this.SY(this.horizonAt(p.u) + p.dv);
-      const w = this.PX(30 * p.sc), h = this.PX(9 * p.sc) * (p.band === 2 ? 0.7 : 1);
-      c.globalAlpha = amt * p.a * 0.085;
+      const bob = Math.sin(this.S.t * 0.25 + p.u * 0.05) * this.PX(2) * (p.band === 2 ? 1.5 : 1);
+      const y = this.SY(this.horizonAt(p.u) + p.dv) + bob;
+      const w = this.PX(46 * p.sc), h = this.PX(8 * p.sc) * (p.band === 2 ? 0.75 : 1);
+      c.globalAlpha = Math.min(0.12, amt * p.a * 0.07);
       c.drawImage(this.SP_PUFF, x - w / 2, y - h / 2, w, h);
     }
     c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
@@ -653,18 +693,20 @@ class Engine {
     const slant = this.windNow * (snowy ? 1.5 : 1.25) + this.WIND_DIR * (snowy ? 0.10 : 0.35);
     const ox = -this.S.x * L.p, oy = -(this.S.y - this.offY) * L.p * 0.45;
     if (snowy) {
-      c.fillStyle = 'rgba(' + cr + ',' + (0.70 * L.dim * (0.40 + pr * 0.60)).toFixed(3) + ')';
-      c.beginPath();
+      // 雪片用软径向渐变精灵，不是硬边正圆
+      const fl = this.tintedFlake(col);
+      const aBase = 0.86 * L.dim * (0.40 + pr * 0.60);
       for (let i = L.a; i < L.a + cnt; i++) {
         const d = this.drops[i];
         d.y += dt * (0.040 + d.s * 0.050) * L.spd;
         d.x += dt * (slant * 0.030 + Math.sin(this.S.t * 0.8 + d.r * 9) * 0.007) * L.spd;
         if (d.y > 1) d.y -= 1; if (d.x > 1) d.x -= 1; if (d.x < 0) d.x += 1;
         const x = fmod(d.x * spanX + ox, spanX) - spanX * 0.115, y = fmod(d.y * spanY + oy, spanY) - spanY * 0.10;
-        const rr = (0.85 + d.r * 2.0) * L.sz * (0.72 + pr * 0.55);
-        c.moveTo(x + rr, y); c.arc(x, y, rr, 0, 6.2832);
+        const rr = (0.85 + d.r * 2.0) * L.sz * (0.72 + pr * 0.55) * 1.35;
+        c.globalAlpha = aBase * (0.7 + d.r * 0.3);
+        c.drawImage(fl, x - rr, y - rr, rr * 2, rr * 2);
       }
-      c.fill();
+      c.globalAlpha = 1;
     } else {
       c.strokeStyle = 'rgba(' + cr + ',' + (0.34 * L.dim * (0.42 + pr * 0.58)).toFixed(3) + ')';
       c.lineWidth = Math.max(0.6, this.stageH * 0.0013 * L.sz);
@@ -770,29 +812,43 @@ class Engine {
      树冠顶、坡沿、桥面。下雪时随 snowAcc 渐渐积起，雪停后缓慢消融。 */
   initSnowDots() {
     const lines = this.geo.SNOWLINES;
-    this.snowDots = null;
+    this.snowDots = null; this.snowFiltered = false;
     if (!lines || !lines.length) return;
     const dots = [];
     const hash = i => { const s = Math.sin(i * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
     lines.forEach((ln, li) => {
       const u0 = ln[0][0], u1 = ln[ln.length - 1][0];
       let idx = 0;
-      for (let u = u0; u <= u1; u += 2.5, idx++) {
+      for (let u = u0; u <= u1; u += 1.8, idx++) {
         const h1 = hash(idx * 7 + li * 131), h2 = hash(idx * 13 + li * 197), h3 = hash(idx * 29 + li * 89);
-        dots.push({ u: u + (h1 - 0.5) * 1.8, v: this.interpAt(ln, u) + (h2 - 0.5) * 2.2,
-          r: 0.55 + h3 * 0.95, a: 0.45 + h1 * 0.55 });
+        dots.push({ u: u + (h1 - 0.5) * 1.6, v: this.interpAt(ln, u) + (h2 - 0.5) * 2.0,
+          r: 0.4 + h3 * 0.7, a: 0.45 + h1 * 0.55 });
       }
     });
     this.snowDots = dots;
   }
+  landAt(u, v) {
+    if (!this.maskOK) return 0;
+    const x = (u / this.AU * this.maskW) | 0, y = (v / this.AV * this.maskH) | 0;
+    if (x < 0 || y < 0 || x >= this.maskW || y >= this.maskH) return 0;
+    return this.maskData[(y * this.maskW + x) * 4 + 1] / 255;
+  }
   drawSnowCover(c) {
     if (!this.snowDots || this.snowAcc < 0.02) return;
+    // 掩膜就绪后过滤一次：受雪线在树冠间隙、桥洞等悬空段的点全部剔除，
+    // 只留真正落在实体（山陆或林木）上的
+    if (!this.snowFiltered && this.maskOK && this.m2OK) {
+      this.snowFiltered = true;
+      this.snowDots = this.snowDots.filter(d =>
+        this.landAt(d.u, d.v) > 0.35 || this.vegAt(d.u, d.v) > 0.3 ||
+        this.landAt(d.u, d.v + 3) > 0.35);
+    }
     const acc = this.snowAcc;
     for (const d of this.snowDots) {
       const x = this.SX(d.u);
       if (x < -20 || x > this.stageW + 20) continue;
       const y = this.SY(d.v), r = this.PX(d.r) * (0.6 + acc * 0.4);
-      c.globalAlpha = acc * d.a * 0.5;
+      c.globalAlpha = acc * d.a * 0.42;
       c.drawImage(this.SP_PUFF, x - r, y - r, r * 2, r * 2);
     }
     c.globalAlpha = 1;
@@ -813,7 +869,8 @@ class Engine {
   drawPetals(c, dt) {
     const P = this.geo.PETALS; if (!P) return;
     // 只在可视范围附近生瓣，短卷全屏可见时等同全画幅
-    this.petalCarry += dt * (P.rate || 2);
+    // 雪天不生新瓣（花谢尽了），已有的自然落完
+    this.petalCarry += dt * (P.rate || 2) * (this.S.mode === 2 ? 0 : 1);
     while (this.petalCarry >= 1) {
       this.petalCarry -= 1;
       // 在生瓣带与可视范围的交集里取样，屏内密度不随取景位置变化；
@@ -1104,6 +1161,7 @@ class Engine {
     this.panT = null;
     this.onUI({ zoomLabel: this.S.zoomTo === 1 ? '放大' : (this.S.zoomTo === ZOOMS[ZOOMS.length - 1] ? '复原' : '再放大'), zoomOn: this.S.zoomTo > 1 });
   }
+  setMist(k) { this.mistLevel = k; }
   setMode(m) {
     this.S.mode = m;
     if (m === 0) this.S.wet = 0;

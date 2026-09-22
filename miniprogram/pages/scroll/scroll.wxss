@@ -65,8 +65,8 @@
 .mapTick { position: absolute; top: 0; width: 2rpx; height: 10rpx; background: var(--cinnabar); }
 .mapTick.b { top: auto; bottom: 0; }
 
-.cRow2 { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding: 16rpx 24rpx 0; }
-.btns { display: flex; gap: 12rpx; }
+.cRow2 { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding: 16rpx 24rpx 0; flex-wrap: wrap; }
+.btns { display: flex; gap: 12rpx; flex-wrap: wrap; }
 .btn { font-size: 23rpx; letter-spacing: .14em; color: var(--paper-2); border: 1rpx solid var(--line);
   padding: 12rpx 20rpx; white-space: nowrap; }
 .btn.on { color: var(--ink-900); background: var(--silk); border-color: var(--silk); }

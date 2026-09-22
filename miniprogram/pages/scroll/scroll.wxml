@@ -63,6 +63,7 @@
         <view class="btn serif {{autoOn?'on':''}}" bindtap="onAuto">时辰自转</view>
         <view class="btn serif {{tourOn?'on':''}}" bindtap="onTour">巡游</view>
         <view class="btn serif {{zoomOn?'on':''}}" bindtap="onZoom">{{zoomLabel}}</view>
+        <view class="btn serif {{mistIdx===2?'on':''}}" bindtap="onMist">{{mistLabels[mistIdx]}}</view>
       </view>
       <view class="seg">
         <view class="segBtn serif {{mode===0?'on':''}}" data-m="0" bindtap="onMode">晴</view>
