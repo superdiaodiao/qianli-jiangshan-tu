@@ -42,11 +42,16 @@ module.exports = [
   {
     id: 'luohua',
     title: '落花诗意图',
-    artist: '佚名',
+    artist: '沈周',
     era: '明',
-    status: 'soon',
-    tags: ['落花', '流水'],
-    line: '花落水流红，备展中 —— 拟作飘瓣与点水成漪',
-    thumb: '',
+    status: 'ready',
+    tags: ['落花', '流水', '粗沈'],
+    line: '山空无人，水流花谢 —— 飘瓣拂过，点水成漪',
+    meta: '纸本设色\n纵三五·九厘米\n横六〇·一厘米\n明正德元年\n今藏南京博物院',
+    thumb: '/assets/luohua/mini.jpg',
+    engine: {
+      assetBase: '/assets/luohua/',   // 先随包本地加载；迁 CDN 后改成远程域名
+      geo: 'luohua-geo',
+    },
   },
 ];

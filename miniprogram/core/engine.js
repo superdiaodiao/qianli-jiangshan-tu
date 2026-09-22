@@ -200,7 +200,10 @@ class Engine {
     this.smoke = g.CHIMNEYS.map(ch => ({ u: ch[0], v: ch[1], lamp: ch[2], ps: [] }));
     this.flocks = []; this.birdTimer = 2;
     this.puffs = [];
-    for (let i = 0; i < 54; i++) this.puffs.push({ u: Math.random() * this.AU, dv: -16 + Math.random() * 52, sc: 0.6 + Math.random() * 1.5, sp: 0.25 + Math.random() * 0.85, a: 0.55 + Math.random() * 0.6 });
+    // 云气颗数随画幅宽度走，短卷不至于雾成一团（千里江山 AU=7486 时约 54 颗，与旧值一致）
+    const puffN = Math.max(6, Math.round(this.AU / 140));
+    for (let i = 0; i < puffN; i++) this.puffs.push({ u: Math.random() * this.AU, dv: -16 + Math.random() * 52, sc: 0.6 + Math.random() * 1.5, sp: 0.25 + Math.random() * 0.85, a: 0.55 + Math.random() * 0.6 });
+    this.petals = []; this.petalCarry = 0;
     this.rings = []; this.splashes = []; this.splashCarry = 0;
     this.drops = [];
     this.walkers = [];
@@ -291,6 +294,7 @@ class Engine {
     }
   }
   ensureHi() {
+    if (this.geo.HAS_HI === false) return;   // 短卷合成图没有更高清的一档
     const want = this.S.zoomTo > 1 || this.S.zoom > 1.02, tw = this.DW / this.NT, m = this.stageW * 0.4;
     for (let i = 0; i < this.NT; i++) {
       const l = i * tw, h = this.hi[i];
@@ -379,7 +383,7 @@ class Engine {
 
   /* ===== 画贴图与调色 ===== */
   drawPlate(c) {
-    c.fillStyle = '#8d7d55'; c.fillRect(0, 0, this.stageW, this.stageH);
+    c.fillStyle = this.geo.BG || '#8d7d55'; c.fillRect(0, 0, this.stageW, this.stageH);
     const ty = this.offY - this.S.y;
     if (this.baseOK) c.drawImage(this.baseIm, -this.S.x, ty, this.DW, this.DH);
     const tw = this.DW / this.NT;
@@ -710,6 +714,65 @@ class Engine {
       }
     } else this.flashA = 0;
   }
+  /* ===== 落花瓣（geo.PETALS 配置才启用）=====
+     spawn:[u0,v0,w,h] 生瓣区（树冠带），rate 每秒颗数，col 花瓣色；
+     落到 GROUND 折线下方即着地淡出，落进水面起一圈涟漪。 */
+  groundAt(u) { return this.geo.GROUND ? this.interpAt(this.geo.GROUND, u) : this.AV + 10; }
+  spawnPetal(u, v, burst) {
+    if (this.petals.length >= 70) return;
+    this.petals.push({ u, v,
+      vy: (1.4 + Math.random() * 1.6) * (burst ? 1.6 : 1),
+      vu: burst ? (Math.random() - 0.5) * 10 : 0,
+      ph: Math.random() * 6.28, sp: 2 + Math.random() * 2.4,
+      sz: 0.75 + Math.random() * 0.65, st: 0, t: 0 });
+  }
+  drawPetals(c, dt) {
+    const P = this.geo.PETALS; if (!P) return;
+    // 只在可视范围附近生瓣，短卷全屏可见时等同全画幅
+    this.petalCarry += dt * (P.rate || 2);
+    while (this.petalCarry >= 1) {
+      this.petalCarry -= 1;
+      const [u0, v0, w, h] = P.spawn;
+      // 在生瓣带与可视范围的交集里取样，屏内密度不随取景位置变化
+      const lo = Math.max(u0, (this.S.x - 60) / this.DW * this.AU);
+      const hi = Math.min(u0 + w, (this.S.x + this.stageW + 60) / this.DW * this.AU);
+      if (hi > lo) this.spawnPetal(lo + Math.random() * (hi - lo), v0 + Math.random() * h, false);
+    }
+    const col = P.col || [233, 160, 170];
+    const dim = 0.35 + this.G.bri * 0.65;
+    for (let i = this.petals.length - 1; i >= 0; i--) {
+      const p = this.petals[i]; p.t += dt; p.ph += dt * p.sp;
+      if (p.st === 0) {
+        p.v += p.vy * dt * 2.2;
+        p.u += (this.windNow * 2.0 + Math.sin(p.ph) * 1.1 + p.vu) * dt;
+        p.vu *= Math.pow(0.5, dt * 2);
+        if (p.v >= this.groundAt(p.u)) {
+          if (this.waterAt(p.u, p.v) > 0.5) { this.addRing(p.u, p.v, 0.45); p.st = 2; }
+          else p.st = 1;
+          p.t = 0;
+        }
+        if (p.v > this.AV + 12) { this.petals.splice(i, 1); continue; }
+      } else if (p.st === 1) {
+        if (p.t > 2.6) { this.petals.splice(i, 1); continue; }
+      } else {
+        p.v += p.vy * dt * 0.6;
+        if (p.t > 0.7) { this.petals.splice(i, 1); continue; }
+      }
+      const x = this.SX(p.u), y = this.SY(p.v);
+      if (x < -20 || x > this.stageW + 20 || y < -20 || y > this.stageH + 20) continue;
+      let a = 0.78 * dim;
+      if (p.st === 1) a *= Math.max(0, 1 - p.t / 2.6);
+      if (p.st === 2) a *= Math.max(0, 1 - p.t / 0.7);
+      const r = this.PX(p.sz);
+      c.fillStyle = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',' + a.toFixed(3) + ')';
+      c.save(); c.translate(x, y);
+      c.rotate(p.ph * 0.6);
+      c.scale(1, 0.55 + Math.abs(Math.sin(p.ph)) * 0.4);   // 翻飞时薄厚变化
+      c.beginPath(); c.arc(0, 0, r, 0, 6.2832); c.fill();
+      c.restore();
+    }
+  }
+
   startle(u, v) {
     if (this.flocks.length > 9) return;
     this.flocks.push({ u, v: Math.max(20, v - 3), n: 3 + ((Math.random() * 4) | 0), dir: Math.random() < 0.5 ? 1 : -1,
@@ -840,6 +903,7 @@ class Engine {
     this.drawWalkers(c, dt);
     this.drawBirds(c, dt);
     this.drawMist(c, dt);
+    this.drawPetals(c, dt);
     this.drawPrecipNear(c, dt);
     this.updateFlash(dt);
     if (this.flashA > 0.003) {
@@ -903,7 +967,11 @@ class Engine {
         if (this.waterAt(u, v) > 0.5) {
           this.addRing(u, v, 1);
           for (let k = 0; k < 2; k++) this.addRing(u + (Math.random() - 0.5) * 7, v + (Math.random() - 0.5) * 2.2, 0.7);
-        } else if (this.vegAt(u, v) > 0.30) this.startle(u, v);
+        } else if (this.vegAt(u, v) > 0.30) {
+          this.startle(u, v);
+          if (this.geo.PETALS) for (let k = 0; k < 9; k++)
+            this.spawnPetal(u + (Math.random() - 0.5) * 6, v + (Math.random() - 0.5) * 4, true);
+        }
       }
       if (this.activePoi >= 0) this.closePoi();
     }
@@ -933,12 +1001,12 @@ class Engine {
   setTour(v) { if (this.S.tour === v) return; this.S.tour = v; this.onUI({ tourOn: v }); }
   startTour() { if (!this.S.tour && this.S.x >= this.maxX - 1) this.S.x = 0; this.setTour(!this.S.tour); }
   cycleZoom() {
-    const ZOOMS = [1, 2.2, 3.8];
+    const ZOOMS = this.geo.ZOOMS || [1, 2.2, 3.8];
     let zi = 0;
     for (let i = 0; i < ZOOMS.length; i++) if (Math.abs(this.S.zoomTo - ZOOMS[i]) < 0.01) zi = i;
     this.S.zoomTo = ZOOMS[(zi + 1) % ZOOMS.length];
     this.panT = null;
-    this.onUI({ zoomLabel: this.S.zoomTo === 1 ? '放大' : (this.S.zoomTo === 3.8 ? '复原' : '再放大'), zoomOn: this.S.zoomTo > 1 });
+    this.onUI({ zoomLabel: this.S.zoomTo === 1 ? '放大' : (this.S.zoomTo === ZOOMS[ZOOMS.length - 1] ? '复原' : '再放大'), zoomOn: this.S.zoomTo > 1 });
   }
   setMode(m) {
     this.S.mode = m;
