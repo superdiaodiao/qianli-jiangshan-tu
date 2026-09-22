@@ -141,9 +141,15 @@ Page({
   },
 
   goBack() {
+    if (this._leaving) return;          // touchend 与 tap 可能双触发，防抖
+    this._leaving = true;
+    setTimeout(() => { this._leaving = false; }, 600);
     const pages = getCurrentPages();
-    if (pages.length > 1) wx.navigateBack();
-    else wx.reLaunch({ url: '/pages/gallery/gallery' });
+    if (pages.length > 1) {
+      wx.navigateBack({ fail: () => wx.reLaunch({ url: '/pages/gallery/gallery' }) });
+    } else {
+      wx.reLaunch({ url: '/pages/gallery/gallery' });
+    }
   },
 
   onShareAppMessage() {
