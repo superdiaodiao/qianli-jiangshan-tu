@@ -63,6 +63,8 @@
         <view class="btn serif {{autoOn?'on':''}}" bindtap="onAuto">时辰自转</view>
         <view class="btn serif {{tourOn?'on':''}}" bindtap="onTour">巡游</view>
         <view class="btn serif {{zoomOn?'on':''}}" bindtap="onZoom">{{zoomLabel}}</view>
+        <view class="btn serif {{soundOn?'on':''}}" bindtap="onSound">聆音</view>
+        <view class="btn serif" bindtap="onSnapshot">存图</view>
       </view>
       <view class="segBlock">
         <text class="segLabel serif">天候</text>

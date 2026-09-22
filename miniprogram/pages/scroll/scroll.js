@@ -1,6 +1,7 @@
 const paintings = require('../../data/paintings.js');
 const geoIndex = require('../../data/geo-index.js');
 const { Engine } = require('../../core/engine.js');
+const { Ambience } = require('../../core/ambience.js');
 
 Page({
   data: {
@@ -13,6 +14,7 @@ Page({
     introShow: true, introGone: false, hintGone: false,
     cardOn: false, cardT: '', cardD: '', activePoi: -1,
     panelHidden: false,
+    soundOn: false,
   },
 
   onLoad(q) {
@@ -47,12 +49,17 @@ Page({
           onProgress: f => this.setData({ barPct: Math.round(f * 100) }),
           onFirstTouch: () => this.hideIntro(),
         });
+        this.canvasNode = canvas;
         this.engine.resize(res[0].width, res[0].height);
       });
   },
 
-  onUnload() { if (this.engine) this.engine.destroy(); },
-  onHide() {},
+  onUnload() {
+    if (this.engine) this.engine.destroy();
+    this.stopSound();
+  },
+  onHide() { this.stopSound(true); },
+  onShow() { if (this._soundWasOn) this.startSound(); },
 
   applyUI(st) {
     const out = {};
@@ -106,6 +113,60 @@ Page({
   onAuto() { if (this.engine) this.engine.setAuto(!this.engine.S.todAuto); },
   onTour() { if (this.engine) { this.engine.startTour(); this.hideIntro(); } },
   onZoom() { if (this.engine) this.engine.cycleZoom(); },
+
+  /* ---- 聆音：合成环境音，强度跟随天候 ---- */
+  startSound() {
+    if (this.ambience) return;
+    if (!Ambience.isSupported()) {
+      wx.showToast({ title: '此机型暂不支持', icon: 'none' });
+      return;
+    }
+    const a = new Ambience();
+    if (!a.ok) { wx.showToast({ title: '音频启动失败', icon: 'none' }); return; }
+    this.ambience = a;
+    this._soundTimer = setInterval(() => {
+      if (this.engine && this.ambience)
+        this.ambience.update(this.engine.WX, this.engine.S.mode === 2, this.engine.windNow);
+    }, 300);
+    this.setData({ soundOn: true });
+  },
+  stopSound(keepIntent) {
+    this._soundWasOn = keepIntent ? this.data.soundOn : false;
+    if (this._soundTimer) { clearInterval(this._soundTimer); this._soundTimer = null; }
+    if (this.ambience) { this.ambience.destroy(); this.ambience = null; }
+    if (!keepIntent) this.setData({ soundOn: false });
+  },
+  onSound() {
+    if (this.data.soundOn) this.stopSound();
+    else this.startSound();
+  },
+
+  /* ---- 存图：当前画面（无控制台）存入相册 ---- */
+  onSnapshot() {
+    if (!this.canvasNode) return;
+    wx.canvasToTempFilePath({
+      canvas: this.canvasNode,
+      success: res => {
+        wx.saveImageToPhotosAlbum({
+          filePath: res.tempFilePath,
+          success: () => wx.showToast({ title: '已存入相册', icon: 'success' }),
+          fail: err => {
+            if (err.errMsg && err.errMsg.indexOf('auth') >= 0) {
+              wx.showModal({
+                title: '需要相册权限',
+                content: '请在设置中允许保存到相册',
+                confirmText: '去设置',
+                success: r => { if (r.confirm) wx.openSetting(); },
+              });
+            } else if (!(err.errMsg && err.errMsg.indexOf('cancel') >= 0)) {
+              wx.showToast({ title: '保存失败', icon: 'none' });
+            }
+          },
+        });
+      },
+      fail: () => wx.showToast({ title: '截取失败', icon: 'none' }),
+    });
+  },
   onMode(e) {
     const m = +e.currentTarget.dataset.m;
     if (this.engine) { this.engine.setMode(m); this.hideIntro(); }
