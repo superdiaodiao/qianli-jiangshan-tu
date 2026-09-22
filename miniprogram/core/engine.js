@@ -200,10 +200,20 @@ class Engine {
     this.smoke = g.CHIMNEYS.map(ch => ({ u: ch[0], v: ch[1], lamp: ch[2], ps: [] }));
     this.flocks = []; this.birdTimer = 2;
     this.puffs = [];
-    // 云气颗数随画幅宽度走，短卷不至于雾成一团（千里江山 AU=7486 时约 54 颗，与旧值一致）
-    const puffN = Math.max(6, Math.round(this.AU / 140));
-    for (let i = 0; i < puffN; i++) this.puffs.push({ u: Math.random() * this.AU, dv: -16 + Math.random() * 52, sc: 0.6 + Math.random() * 1.5, sp: 0.25 + Math.random() * 0.85, a: 0.55 + Math.random() * 0.6 });
+    // 云气分三层：远雾贴山脊、中霭、近岚（大而淡、飘得快），各自的尺寸疏密不同
+    // 总数与旧版持平（千里江山约 53 颗），短卷保底 18 颗
+    const puffN = Math.max(18, Math.round(this.AU / 140));
+    for (let i = 0; i < puffN; i++) {
+      const band = i % 3, r = Math.random();
+      this.puffs.push({ u: Math.random() * this.AU, band,
+        dv: band === 0 ? -20 + r * 30 : band === 1 ? 5 + r * 40 : 30 + r * 42,
+        sc: band === 0 ? 0.6 + r * 1.0 : band === 1 ? 1.4 + r * 1.2 : 2.4 + r * 1.6,
+        sp: (0.25 + Math.random() * 0.85) * (band === 2 ? 1.5 : band === 1 ? 1 : 0.7),
+        a: (0.55 + Math.random() * 0.6) * (band === 0 ? 1.2 : band === 1 ? 0.85 : 0.5) });
+    }
     this.petals = []; this.petalCarry = 0;
+    this.fish = []; this.fishInit = false;
+    this.snowAcc = 0; this.initSnowDots();
     this.rings = []; this.splashes = []; this.splashCarry = 0;
     this.drops = [];
     this.walkers = [];
@@ -578,7 +588,7 @@ class Engine {
       const x = this.SX(p.u);
       if (x < -260 || x > this.stageW + 260) continue;
       const y = this.SY(this.horizonAt(p.u) + p.dv);
-      const w = this.PX(30 * p.sc), h = this.PX(9 * p.sc);
+      const w = this.PX(30 * p.sc), h = this.PX(9 * p.sc) * (p.band === 2 ? 0.7 : 1);
       c.globalAlpha = amt * p.a * 0.085;
       c.drawImage(this.SP_PUFF, x - w / 2, y - h / 2, w, h);
     }
@@ -714,6 +724,80 @@ class Engine {
       }
     } else this.flashA = 0;
   }
+  /* ===== 游鱼（geo.FISH 配置才启用）=====
+     墨色鱼影贴水缓游，掩膜约束在水面内，偶尔近水面荡开一圈涟漪 */
+  drawFish(c, dt) {
+    const F = this.geo.FISH; if (!F || !this.maskOK) return;
+    if (!this.fishInit) {
+      this.fishInit = true;
+      const n = F.n || 4;
+      for (let i = 0; i < n * 220 && this.fish.length < n; i++) {
+        const u = Math.random() * this.AU, v = Math.random() * this.AV;
+        if (this.waterAt(u, v) > 0.75) this.fish.push({ u, v,
+          ang: Math.random() * 6.28, sp: 2.6 + Math.random() * 2.6,
+          ph: Math.random() * 6.28, turnT: 2 + Math.random() * 3,
+          ringT: 4 + Math.random() * 9 });
+      }
+    }
+    const ink = this.G.ink;
+    for (const f of this.fish) {
+      f.ph += dt * (3 + f.sp); f.turnT -= dt; f.ringT -= dt;
+      if (f.turnT <= 0) { f.ang += (Math.random() - 0.5) * 1.3; f.turnT = 2 + Math.random() * 4; }
+      const nu = f.u + Math.cos(f.ang) * f.sp * dt, nv = f.v + Math.sin(f.ang) * f.sp * dt * 0.45;
+      if (this.waterAt(nu, nv) > 0.5) { f.u = nu; f.v = nv; }
+      else f.ang += Math.PI * (0.7 + Math.random() * 0.6);
+      const x = this.SX(f.u), y = this.SY(f.v);
+      if (x < -30 || x > this.stageW + 30 || y < -30 || y > this.stageH + 30) continue;
+      if (f.ringT <= 0) { f.ringT = 5 + Math.random() * 10; this.addRing(f.u, f.v, 0.3); }
+      const depth = Math.max(0, Math.min(1, (f.v - 120) / 190));
+      const s = this.PX(0.85) * (0.65 + depth * 0.55);
+      const a = 0.34;
+      c.save(); c.translate(x, y);
+      c.rotate(Math.atan2(Math.sin(f.ang) * 0.45, Math.cos(f.ang)));
+      c.fillStyle = 'rgba(' + (ink[0] | 0) + ',' + (ink[1] | 0) + ',' + (ink[2] | 0) + ',' + a + ')';
+      c.beginPath(); c.ellipse(0, 0, s * 2.1, s * 0.75, 0, 0, 6.2832); c.fill();
+      const tw = Math.sin(f.ph) * s * 0.9;   // 尾鳍摆动
+      c.beginPath(); c.moveTo(-s * 1.8, 0);
+      c.quadraticCurveTo(-s * 2.9, tw * 0.4, -s * 3.4, tw);
+      c.quadraticCurveTo(-s * 2.8, tw * 0.6, -s * 1.8, 0);
+      c.fill();
+      c.restore();
+    }
+  }
+
+  /* ===== 积雪（geo.SNOWLINES 配置才启用）=====
+     不用掩膜罩染（放大有假边），而是沿"受雪面"折线撒确定性的软白点：
+     树冠顶、坡沿、桥面。下雪时随 snowAcc 渐渐积起，雪停后缓慢消融。 */
+  initSnowDots() {
+    const lines = this.geo.SNOWLINES;
+    this.snowDots = null;
+    if (!lines || !lines.length) return;
+    const dots = [];
+    const hash = i => { const s = Math.sin(i * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+    lines.forEach((ln, li) => {
+      const u0 = ln[0][0], u1 = ln[ln.length - 1][0];
+      let idx = 0;
+      for (let u = u0; u <= u1; u += 2.5, idx++) {
+        const h1 = hash(idx * 7 + li * 131), h2 = hash(idx * 13 + li * 197), h3 = hash(idx * 29 + li * 89);
+        dots.push({ u: u + (h1 - 0.5) * 1.8, v: this.interpAt(ln, u) + (h2 - 0.5) * 2.2,
+          r: 0.55 + h3 * 0.95, a: 0.45 + h1 * 0.55 });
+      }
+    });
+    this.snowDots = dots;
+  }
+  drawSnowCover(c) {
+    if (!this.snowDots || this.snowAcc < 0.02) return;
+    const acc = this.snowAcc;
+    for (const d of this.snowDots) {
+      const x = this.SX(d.u);
+      if (x < -20 || x > this.stageW + 20) continue;
+      const y = this.SY(d.v), r = this.PX(d.r) * (0.6 + acc * 0.4);
+      c.globalAlpha = acc * d.a * 0.5;
+      c.drawImage(this.SP_PUFF, x - r, y - r, r * 2, r * 2);
+    }
+    c.globalAlpha = 1;
+  }
+
   /* ===== 落花瓣（geo.PETALS 配置才启用）=====
      spawn:[u0,v0,w,h] 生瓣区（树冠带），rate 每秒颗数，col 花瓣色；
      落到 GROUND 折线下方即着地淡出，落进水面起一圈涟漪。 */
@@ -732,11 +816,18 @@ class Engine {
     this.petalCarry += dt * (P.rate || 2);
     while (this.petalCarry >= 1) {
       this.petalCarry -= 1;
-      const [u0, v0, w, h] = P.spawn;
-      // 在生瓣带与可视范围的交集里取样，屏内密度不随取景位置变化
+      // 在生瓣带与可视范围的交集里取样，屏内密度不随取景位置变化；
+      // 有树冠顶线（P.top）时沿线取样，花只从冠内飘出，不高过树
+      const u0 = P.top ? P.top[0][0] : P.spawn[0];
+      const u1 = P.top ? P.top[P.top.length - 1][0] : P.spawn[0] + P.spawn[2];
       const lo = Math.max(u0, (this.S.x - 60) / this.DW * this.AU);
-      const hi = Math.min(u0 + w, (this.S.x + this.stageW + 60) / this.DW * this.AU);
-      if (hi > lo) this.spawnPetal(lo + Math.random() * (hi - lo), v0 + Math.random() * h, false);
+      const hi = Math.min(u1, (this.S.x + this.stageW + 60) / this.DW * this.AU);
+      if (hi > lo) {
+        const uu = lo + Math.random() * (hi - lo);
+        const vv = P.top ? this.interpAt(P.top, uu) + 2 + Math.random() * (P.depth || 42)
+          : P.spawn[1] + Math.random() * P.spawn[3];
+        this.spawnPetal(uu, vv, false);
+      }
     }
     const col = P.col || [233, 160, 170];
     const dim = 0.35 + this.G.bri * 0.65;
@@ -862,6 +953,9 @@ class Engine {
     this.windNow *= 1 + this.WX.precip * 0.9;
 
     this.SN = this.seasonNow(); this.WX = this.weather();
+    // 积雪：下雪时渐积（约半分钟成型），雪停缓融
+    const snowing = S.mode === 2 ? this.WX.precip : 0;
+    this.snowAcc = clamp01(this.snowAcc + (snowing > 0.05 ? dt / 28 * snowing : -dt / 40));
 
     if (S.todAuto) S.tod = (S.tod + dt / 150) % 1;
     if (S.tour && !S.drag) {
@@ -895,12 +989,14 @@ class Engine {
     this.drawPlate(c);
     this.drawPrecipFar(c, dt);
     this.drawGlints(c, dt);
+    this.drawFish(c, dt);
     this.drawRings(c, dt);
     this.drawSplashes(c, dt);
     this.drawFalls(c);
     this.drawBoats(c, dt);
     this.drawSmoke(c, dt);
     this.drawWalkers(c, dt);
+    this.drawSnowCover(c);
     this.drawBirds(c, dt);
     this.drawMist(c, dt);
     this.drawPetals(c, dt);

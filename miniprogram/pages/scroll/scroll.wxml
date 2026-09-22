@@ -28,7 +28,8 @@
 
     <view class="card {{cardOn?'on':''}}" catchtouchstart="noop"
       catchtouchmove="noop" catchtouchend="noop">
-      <view class="close" bindtap="onCloseCard">×</view>
+      <!-- 父容器 catch 触摸后子元素 tap 不再合成，关闭逻辑挂自己的 touchend 上 -->
+      <view class="close" catchtouchend="onCloseCard" catchtap="onCloseCard">×</view>
       <view class="cardT serif">{{cardT}}</view>
       <view class="cardD">{{cardD}}</view>
     </view>

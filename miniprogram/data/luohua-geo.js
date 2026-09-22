@@ -22,8 +22,18 @@ const BASE = { mist: 1, sat: 1, boatFrac: 0, birdN: 4, birdSp: 26 };
 const GROUND = [[0, 250], [128, 248], [150, 232], [200, 226], [262, 226], [300, 238],
   [326, 250], [360, 258], [420, 236], [470, 208], [520, 196], [546, 192]];
 
-/* 落花瓣：树冠带生瓣 */
-const PETALS = { spawn: [140, 55, 395, 130], rate: 1.5, col: [233, 160, 170] };
+/* 树冠顶线：花瓣只从冠内飘出，不高过树 */
+const CROWNTOP = [[140, 142], [180, 112], [210, 92], [250, 76], [300, 62], [340, 70],
+  [380, 58], [420, 68], [460, 92], [500, 128], [546, 150]];
+
+/* 落花瓣：沿树冠顶线取样，往冠内 42 单位深处生瓣 */
+const PETALS = { top: CROWNTOP, depth: 42, rate: 1.5, col: [233, 160, 170] };
+
+/* 游鱼：溪滩与桥下各有墨影 */
+const FISH = { n: 4 };
+
+/* 积雪线：树冠顶、坡沿、桥面 */
+const SNOWLINES = [CROWNTOP, GROUND, [[314, 254], [336, 248], [362, 247], [386, 252]]];
 
 const POIS = [
   { u: 190, v: 210, t: '扶杖老人',
@@ -39,5 +49,5 @@ const POIS = [
 ];
 
 module.exports = { AU, AV, NT, ART_W, ART_H, HORIZON, LANES, BASE, CHIMNEYS, WALKS,
-  NBRIDGE, FALLS, POIS, TOD, GROUND, PETALS,
+  NBRIDGE, FALLS, POIS, TOD, GROUND, PETALS, FISH, SNOWLINES,
   HAS_HI: false, ZOOMS: [1, 1.6, 2.4], BG: '#cdc4ac' };
