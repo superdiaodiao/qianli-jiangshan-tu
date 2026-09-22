@@ -794,6 +794,10 @@ class Engine {
      留白云气式的扁底软云：预生成几款圆簇压平底的云形，
      飘在山脊线之上的天空带里，随风缓移，晨昏随时辰染色。 */
   initClouds() {
+    // 云是往画上"添笔"，不是配天气——默认不开，
+    // 只有画作 geo 明确声明 CLOUDS: true 才启用
+    this.clouds = null;
+    if (this.geo.CLOUDS !== true) return;
     let seed = 7;
     const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
     this.cloudSprites = [];
@@ -843,7 +847,7 @@ class Engine {
     return this._cloudTintC;
   }
   drawClouds(c, dt) {
-    if (this.geo.CLOUDS === false || !this.clouds) return;
+    if (!this.clouds) return;
     const dim = (0.30 + this.G.bri * 0.55) * (1 + this.WX.overcast * 0.4);
     for (const cl of this.clouds) {
       cl.u += dt * cl.sp * 2.4 * this.windNow;
