@@ -49,3 +49,11 @@ pages/scroll/        观画页（canvas + 控制台 + 释文卡）
 - 呼吸引导模式：画面亮度随呼吸节奏缓慢起伏
 - 每日一画 + 订阅消息
 ```
+
+## AppID 与公开仓库
+
+仓库里的 `project.config.json` 恒用占位符 `touristappid`，不提交真实 AppID
+（虽然 AppID 本身是公开标识、无密钥性质，但公共仓库里放着会触发
+GitHub secret scanning 告警）。在开发者工具「详情」里切换到自己的
+AppID 即可使用——它会改写 `project.config.json`，注意别把这行提交。
+AppSecret 任何时候都不要放进仓库。

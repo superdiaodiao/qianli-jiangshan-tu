@@ -2,7 +2,7 @@
   "description": "卧游 —— 治愈系古画画廊",
   "miniprogramRoot": "./",
   "compileType": "miniprogram",
-  "appid": "wx4a17f4e5087b9063",
+  "appid": "touristappid",
   "projectname": "woyou-gallery",
   "libVersion": "3.5.0",
   "setting": {
