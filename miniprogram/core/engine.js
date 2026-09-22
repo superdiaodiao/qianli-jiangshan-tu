@@ -835,14 +835,8 @@ class Engine {
   }
   drawSnowCover(c) {
     if (!this.snowDots || this.snowAcc < 0.02) return;
-    // 掩膜就绪后过滤一次：受雪线在树冠间隙、桥洞等悬空段的点全部剔除，
-    // 只留真正落在实体（山陆或林木）上的
-    if (!this.snowFiltered && this.maskOK && this.m2OK) {
-      this.snowFiltered = true;
-      this.snowDots = this.snowDots.filter(d =>
-        this.landAt(d.u, d.v) > 0.35 || this.vegAt(d.u, d.v) > 0.3 ||
-        this.landAt(d.u, d.v + 3) > 0.35);
-    }
+    // 不做掩膜过滤：山陆掩膜把雾霭当实体、把浅色坡顶当空白，两头都会错。
+    // 受雪线本身按逐段受雪面手工标注，准确性由数据保证。
     const acc = this.snowAcc;
     for (const d of this.snowDots) {
       const x = this.SX(d.u);
