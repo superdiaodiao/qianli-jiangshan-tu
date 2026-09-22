@@ -19,6 +19,7 @@ async function loadModule(path, registry) {
   const reg = {};
   reg['qljst-geo.js'] = await loadModule('data/qljst-geo.js', reg);
   reg['luohua-geo.js'] = await loadModule('data/luohua-geo.js', reg);
+  reg['xiaoxia-geo.js'] = await loadModule('data/xiaoxia-geo.js', reg);
   const { Engine } = await loadModule('core/engine.js', reg);
 
   const cv = document.getElementById('cv');
@@ -27,9 +28,10 @@ async function loadModule(path, registry) {
   const W = Math.min(innerWidth, 430), H = innerHeight;
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
   const params = new URLSearchParams(location.search);
-  const qljst = params.get('p') === 'qljst';
-  const geo = qljst ? reg['qljst-geo.js'] : reg['luohua-geo.js'];
-  const base = qljst ? 'https://superdiaodiao.github.io/qianli-jiangshan-tu/' : '/assets/luohua/';
+  const p = params.get('p') || 'luohua';
+  const geo = reg[p + '-geo.js'] || reg['luohua-geo.js'];
+  const REMOTE = 'https://superdiaodiao.github.io/qianli-jiangshan-tu/';
+  const base = params.get('base') || (p === 'qljst' ? REMOTE : REMOTE + p + '/');
   const e = window.E = new Engine({ canvas: cv, dpr: 2, geo, assetBase: base,
     onUI: () => {}, onMap: () => {}, onPoi: i => console.log('poi', i),
     onProgress: () => {}, onFirstTouch: () => {} });

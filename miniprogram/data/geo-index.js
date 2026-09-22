@@ -2,4 +2,5 @@
 module.exports = {
   'qljst-geo': require('./qljst-geo.js'),
   'luohua-geo': require('./luohua-geo.js'),
+  'xiaoxia-geo': require('./xiaoxia-geo.js'),
 };
