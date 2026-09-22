@@ -670,12 +670,22 @@ class Engine {
   drawPrecipFar(c, dt) {
     const pr = this.WX.precip; if (pr < 0.02) return;
     this.ensureDrops();
-    this.drawLayerP(c, dt, this.LAY[0], pr, this.SN.snowy > 0.5);
+    /* 远景雨要被山体擦掉（真的落在山后）。网页版特效在独立透明层上，
+       destination-out 只擦特效；单 canvas 里直接擦会把画连底擦穿，
+       所以先画到离屏层，擦完再贴回来。 */
+    const w = Math.round(this.stageW * this.dpr), h = Math.round(this.stageH * this.dpr);
+    if (!this.fxFar) this.fxFar = offCanvas(w, h);
+    if (this.fxFar.width !== w || this.fxFar.height !== h) { this.fxFar.width = w; this.fxFar.height = h; }
+    const fc = this.fxFar.getContext('2d');
+    fc.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    fc.clearRect(0, 0, this.stageW, this.stageH);
+    this.drawLayerP(fc, dt, this.LAY[0], pr, this.SN.snowy > 0.5);
     if (this.A_LAND) {
-      c.globalCompositeOperation = 'destination-out';
-      this.drawMaskLayer(c, this.A_LAND, 1);
-      c.globalCompositeOperation = 'source-over';
+      fc.globalCompositeOperation = 'destination-out';
+      this.drawMaskLayer(fc, this.A_LAND, 1);
+      fc.globalCompositeOperation = 'source-over';
     }
+    c.drawImage(this.fxFar, 0, 0, w, h, 0, 0, this.stageW, this.stageH);
   }
   drawPrecipNear(c, dt) {
     const pr = this.WX.precip; if (pr < 0.02) return;

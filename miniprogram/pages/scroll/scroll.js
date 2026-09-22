@@ -76,7 +76,9 @@ Page({
   },
 
   /* ---- 画面触摸 ---- */
-  tp(e) { return (e.touches || []).map(t => ({ x: t.x !== undefined ? t.x : t.clientX, y: t.y !== undefined ? t.y : t.clientY })); },
+  noop() {},
+  // viewport 顶在页面原点，clientX/clientY 即画面坐标
+  tp(e) { return (e.touches || []).map(t => ({ x: t.clientX !== undefined ? t.clientX : t.x, y: t.clientY !== undefined ? t.clientY : t.y })); },
   onTouchStart(e) { if (this.engine) this.engine.touchStart(this.tp(e)); },
   onTouchMove(e) { if (this.engine) this.engine.touchMove(this.tp(e)); },
   onTouchEnd() { if (this.engine) this.engine.touchEnd(); },

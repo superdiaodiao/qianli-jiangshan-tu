@@ -1,12 +1,15 @@
 <view class="stage">
-  <view class="viewport">
-    <canvas type="2d" id="stage" class="cv"
-      bindtouchstart="onTouchStart" bindtouchmove="onTouchMove"
-      bindtouchend="onTouchEnd" bindtouchcancel="onTouchEnd"></canvas>
+  <!-- 触摸事件绑在容器上：卷首题签、释文卡都浮在画布之上，
+       绑在 canvas 上会被浮层挡住，第一次拖动就没反应 -->
+  <view class="viewport"
+    bindtouchstart="onTouchStart" bindtouchmove="onTouchMove"
+    bindtouchend="onTouchEnd" bindtouchcancel="onTouchEnd">
+    <canvas type="2d" id="stage" class="cv"></canvas>
 
     <view class="bar" style="width:{{barPct}}%;opacity:{{barPct>=100?0:1}}"></view>
 
-    <view class="backBtn serif" bindtap="goBack">⟨ 画廊</view>
+    <view class="backBtn serif" catchtouchstart="noop" catchtouchmove="noop"
+      catchtouchend="noop" bindtap="goBack">⟨ 画廊</view>
 
     <view class="intro {{introGone?'gone':''}}" wx:if="{{introShow}}" bindtap="hideIntro">
       <view class="introBox">
@@ -22,7 +25,8 @@
       <view>点朱点看释文</view>
     </view>
 
-    <view class="card {{cardOn?'on':''}}">
+    <view class="card {{cardOn?'on':''}}" catchtouchstart="noop"
+      catchtouchmove="noop" catchtouchend="noop">
       <view class="close" bindtap="onCloseCard">×</view>
       <view class="cardT serif">{{cardT}}</view>
       <view class="cardD">{{cardD}}</view>
