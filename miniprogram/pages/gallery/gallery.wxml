@@ -1,0 +1,29 @@
+<view class="hall">
+  <view class="head">
+    <view class="appTitle serif">卧　游</view>
+    <view class="appSub serif">澄怀观道 · 卧以游之</view>
+  </view>
+
+  <view class="list">
+    <view wx:for="{{paintings}}" wx:key="id"
+      class="pcard {{item.status==='soon'?'soon':''}}"
+      data-id="{{item.id}}" data-status="{{item.status}}" bindtap="onOpen">
+      <view class="pthumb">
+        <image wx:if="{{item.thumb}}" src="{{item.thumb}}" mode="aspectFill" class="pimg"/>
+        <view wx:else class="pblank serif">{{item.title[0]}}</view>
+        <view class="pveil"></view>
+        <view wx:if="{{item.status==='soon'}}" class="psoon serif">备展中</view>
+      </view>
+      <view class="pmeta">
+        <view class="ptitle serif">{{item.title}}</view>
+        <view class="partist serif">{{item.era}} · {{item.artist}}</view>
+        <view class="pline">{{item.line}}</view>
+        <view class="ptags">
+          <text class="ptag serif" wx:for="{{item.tags}}" wx:for-item="tg" wx:key="*this">{{tg}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="foot serif">画心皆取公有领域高清扫描件</view>
+</view>

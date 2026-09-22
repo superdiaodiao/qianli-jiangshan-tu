@@ -1,0 +1,78 @@
+<view class="stage">
+  <view class="viewport">
+    <canvas type="2d" id="stage" class="cv"
+      bindtouchstart="onTouchStart" bindtouchmove="onTouchMove"
+      bindtouchend="onTouchEnd" bindtouchcancel="onTouchEnd"></canvas>
+
+    <view class="bar" style="width:{{barPct}}%;opacity:{{barPct>=100?0:1}}"></view>
+
+    <view class="backBtn serif" bindtap="goBack">⟨ 画廊</view>
+
+    <view class="intro {{introGone?'gone':''}}" wx:if="{{introShow}}" bindtap="hideIntro">
+      <view class="introBox">
+        <view class="openBtn serif" catchtap="onOpen">展 卷</view>
+        <view class="vmeta serif">{{meta}}</view>
+        <view class="vtitle serif">{{title}}<view class="seal serif">{{artist}}</view></view>
+      </view>
+    </view>
+
+    <view class="hint serif {{hintGone?'gone':''}}">
+      <view>拖动展卷 · 双指缩放</view>
+      <view>点水面起涟漪 · 点林木惊飞鸟</view>
+      <view>点朱点看释文</view>
+    </view>
+
+    <view class="card {{cardOn?'on':''}}">
+      <view class="close" bindtap="onCloseCard">×</view>
+      <view class="cardT serif">{{cardT}}</view>
+      <view class="cardD">{{cardD}}</view>
+    </view>
+  </view>
+
+  <view class="console" wx:if="{{!panelHidden}}">
+    <scroll-view class="guide" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="guideLabel serif">导览</view>
+      <view class="chip serif {{activePoi===index?'on':''}}" wx:for="{{pois}}" wx:key="index"
+        data-i="{{index}}" bindtap="onChip">{{item.t}}</view>
+    </scroll-view>
+    <view class="cRow">
+      <view class="todBlock">
+        <view class="todName serif">{{todName}}</view>
+        <view class="todWrap">
+          <slider class="rng" min="0" max="1000" value="{{todVal}}" block-size="14"
+            activeColor="#2c3844" backgroundColor="#2c3844" block-color="#bb4032"
+            bindchanging="onTod" bindchange="onTod"/>
+          <view class="scale serif"><text>晓</text><text>午</text><text>暮</text><text>夜</text></view>
+        </view>
+      </view>
+      <view class="mapWrap" bindtouchstart="onMapTouch" bindtouchmove="onMapTouch">
+        <image class="mapImg" src="{{thumb}}" mode="scaleToFill"/>
+        <view class="mapBox" style="left:{{mapLeft}}%;width:{{mapWidth}}%"></view>
+        <view class="mapTick {{index%2?'b':''}}" wx:for="{{pois}}" wx:key="index"
+          style="left:{{item.u/au*100}}%"></view>
+      </view>
+    </view>
+    <view class="cRow2">
+      <view class="btns">
+        <view class="btn serif {{autoOn?'on':''}}" bindtap="onAuto">时辰自转</view>
+        <view class="btn serif {{tourOn?'on':''}}" bindtap="onTour">巡游</view>
+        <view class="btn serif {{zoomOn?'on':''}}" bindtap="onZoom">{{zoomLabel}}</view>
+      </view>
+      <view class="seg">
+        <view class="segBtn serif {{mode===0?'on':''}}" data-m="0" bindtap="onMode">晴</view>
+        <view class="segBtn serif {{mode===1?'on':''}}" data-m="1" bindtap="onMode">雨</view>
+        <view class="segBtn serif {{mode===2?'on':''}}" data-m="2" bindtap="onMode">雪</view>
+      </view>
+    </view>
+    <view class="cRow3">
+      <view class="wetName serif">{{wetName}}</view>
+      <view class="wetWrap">
+        <slider class="rng" min="0" max="1000" value="{{wetVal}}" block-size="14"
+          activeColor="#2c3844" backgroundColor="#2c3844" block-color="#bb4032"
+          bindchanging="onWet" bindchange="onWet"/>
+        <view class="scale serif"><text>无</text><text>微</text><text>盛</text><text>骤</text></view>
+      </view>
+    </view>
+  </view>
+  <view class="panelToggle serif" bindtap="onPanel">{{panelHidden?'展开':'收起'}}</view>
+</view>

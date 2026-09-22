@@ -1,0 +1,13 @@
+{
+  "pages": [
+    "pages/gallery/gallery",
+    "pages/scroll/scroll"
+  ],
+  "window": {
+    "navigationStyle": "custom",
+    "backgroundColor": "#0b0f13",
+    "backgroundTextStyle": "light"
+  },
+  "lazyCodeLoading": "requiredComponents",
+  "sitemapLocation": "sitemap.json"
+}

@@ -1,0 +1,85 @@
+.stage { display: flex; flex-direction: column; height: 100vh; background: var(--ink-900); }
+.viewport { position: relative; flex: 1; overflow: hidden; background: #6f6444; }
+.cv { width: 100%; height: 100%; }
+
+.bar { position: absolute; top: 0; left: 0; height: 3rpx; background: var(--silk); transition: width .3s ease, opacity .5s; }
+
+.backBtn { position: absolute; top: calc(env(safe-area-inset-top, 20px) + 16rpx); left: 20rpx;
+  font-size: 24rpx; letter-spacing: .12em; color: rgba(231,220,196,.85); z-index: 8;
+  padding: 10rpx 20rpx; background: rgba(10,14,18,.5); border: 1rpx solid rgba(231,220,196,.28); }
+
+/* 卷首题签 */
+.intro { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex;
+  align-items: center; justify-content: center; z-index: 5;
+  background: radial-gradient(ellipse 78% 96% at 50% 50%, rgba(6,9,12,.20), rgba(6,9,12,.62));
+  transition: opacity .9s ease; }
+.intro.gone { opacity: 0; pointer-events: none; }
+.introBox { display: flex; align-items: flex-start; gap: 36rpx; padding: 0 32rpx; }
+.vtitle { writing-mode: vertical-rl; font-weight: 500; font-size: 76rpx; letter-spacing: .24em;
+  color: var(--paper); text-shadow: 0 2rpx 24rpx rgba(0,0,0,.65); }
+.vmeta { writing-mode: vertical-rl; font-size: 24rpx; line-height: 1.9; letter-spacing: .2em;
+  color: var(--paper-2); max-height: 46vh; text-shadow: 0 2rpx 14rpx rgba(0,0,0,.6); white-space: pre-line; }
+.seal { writing-mode: horizontal-tb; margin-top: 24rpx; font-size: 21rpx; letter-spacing: .18em;
+  color: #e8cfc2; background: var(--cinnabar); padding: 9rpx 10rpx; line-height: 1.35; text-align: center; }
+.openBtn { writing-mode: vertical-rl; font-size: 28rpx; letter-spacing: .34em; color: var(--paper);
+  border: 1rpx solid rgba(231,220,196,.38); padding: 30rpx 16rpx; }
+
+.hint { position: absolute; top: calc(env(safe-area-inset-top, 20px) + 16rpx); right: 24rpx;
+  font-size: 20rpx; letter-spacing: .2em; color: rgba(231,220,196,.55); z-index: 4;
+  transition: opacity .6s; text-shadow: 0 1rpx 8rpx rgba(0,0,0,.7); text-align: right; line-height: 2;
+  white-space: pre-line; }
+.hint.gone { opacity: 0; }
+
+/* 释文卡 */
+.card { position: absolute; left: 24rpx; bottom: 24rpx; right: 24rpx; background: rgba(10,14,18,.93);
+  border: 1rpx solid var(--line); border-left: 4rpx solid var(--cinnabar); padding: 26rpx 30rpx 28rpx;
+  z-index: 6; transform: translateY(12rpx); opacity: 0; transition: opacity .28s, transform .28s;
+  pointer-events: none; }
+.card.on { opacity: 1; transform: none; pointer-events: auto; }
+.cardT { font-size: 32rpx; font-weight: 500; letter-spacing: .11em; color: var(--paper); margin-bottom: 12rpx; }
+.cardD { font-size: 24rpx; line-height: 1.95; color: var(--paper-2); letter-spacing: .03em; }
+.close { position: absolute; top: 10rpx; right: 22rpx; font-size: 34rpx; color: var(--paper-3); padding: 8rpx; }
+
+/* 控制台 */
+.console { background: linear-gradient(180deg, var(--ink-800), var(--ink-900));
+  border-top: 1rpx solid var(--line-soft); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 60rpx); }
+.guide { display: flex; white-space: nowrap; padding: 16rpx 24rpx; border-bottom: 1rpx solid var(--line-soft); }
+.guideLabel { display: inline-block; font-size: 20rpx; letter-spacing: .3em; color: var(--paper-3);
+  padding: 10rpx 8rpx 0 0; }
+.chip { display: inline-block; font-size: 23rpx; letter-spacing: .12em; color: var(--paper-2);
+  border: 1rpx solid var(--line); padding: 9rpx 20rpx; margin-right: 12rpx; }
+.chip.on { color: var(--paper); border-color: var(--silk); background: rgba(201,169,105,.09); }
+
+.cRow { display: flex; align-items: center; gap: 20rpx; padding: 14rpx 24rpx 0; }
+.todBlock { flex: 1.1; display: flex; align-items: center; gap: 12rpx; min-width: 0; }
+.todName { font-size: 36rpx; font-weight: 500; letter-spacing: .1em; color: var(--silk); width: 1.3em; text-align: center; }
+.todWrap, .wetWrap { flex: 1; min-width: 0; }
+.rng { margin: 0 8rpx; }
+.scale { display: flex; justify-content: space-between; font-size: 17rpx; letter-spacing: .14em;
+  color: var(--paper-3); padding: 0 16rpx; }
+.mapWrap { position: relative; flex: 1; height: 72rpx; border: 1rpx solid var(--line-soft);
+  overflow: hidden; background: #6f6444; }
+.mapImg { width: 100%; height: 100%; opacity: .62; }
+.mapBox { position: absolute; top: 0; height: 100%; border: 1rpx solid var(--silk);
+  background: rgba(201,169,105,.16); min-width: 4rpx; }
+.mapTick { position: absolute; top: 0; width: 2rpx; height: 10rpx; background: var(--cinnabar); }
+.mapTick.b { top: auto; bottom: 0; }
+
+.cRow2 { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding: 16rpx 24rpx 0; }
+.btns { display: flex; gap: 12rpx; }
+.btn { font-size: 23rpx; letter-spacing: .14em; color: var(--paper-2); border: 1rpx solid var(--line);
+  padding: 12rpx 20rpx; white-space: nowrap; }
+.btn.on { color: var(--ink-900); background: var(--silk); border-color: var(--silk); }
+.seg { display: flex; border: 1rpx solid var(--line); }
+.segBtn { font-size: 25rpx; font-weight: 500; letter-spacing: .1em; color: var(--paper-2);
+  padding: 10rpx 26rpx; border-right: 1rpx solid var(--line); }
+.segBtn:last-child { border-right: 0; }
+.segBtn.on { color: var(--ink-900); background: var(--silk); }
+
+.cRow3 { display: flex; align-items: center; gap: 12rpx; padding: 10rpx 24rpx 6rpx; }
+.wetName { font-size: 27rpx; font-weight: 500; letter-spacing: .08em; color: var(--azurite);
+  width: 2.6em; text-align: center; white-space: nowrap; }
+
+.panelToggle { position: fixed; right: 20rpx; bottom: calc(env(safe-area-inset-bottom, 0px) + 12rpx);
+  font-size: 21rpx; letter-spacing: .2em; color: var(--paper-3); padding: 8rpx 18rpx;
+  border: 1rpx solid var(--line-soft); background: rgba(10,14,18,.6); z-index: 7; }

@@ -1,0 +1,19 @@
+page {
+  --ink-900: #0b0f13;
+  --ink-800: #121820;
+  --line: #2c3844;
+  --line-soft: #1f2933;
+  --paper: #e7dcc4;
+  --paper-2: #a9b0b4;
+  --paper-3: #6f7a82;
+  --silk: #c9a969;
+  --azurite: #5a92cc;
+  --cinnabar: #bb4032;
+  background: var(--ink-900);
+  color: var(--paper);
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-weight: 300;
+}
+.serif {
+  font-family: "Songti SC", "STSong", "Noto Serif SC", SimSun, serif;
+}
