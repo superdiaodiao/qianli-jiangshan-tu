@@ -8,7 +8,6 @@ class Ambience {
   static isSupported() { return typeof wx.createInnerAudioContext === 'function'; }
 
   constructor(base) {
-    base = base || '/assets/audio/';
     this.ok = false;
     try {
       // 静音键下也出声（用户主动点了聆音），并允许与他人音乐混播

@@ -13,7 +13,7 @@
 
 ## 正式发布前要做的事
 
-- [ ] 资源迁到腾讯云 COS/CDN（GitHub Pages 国内访问慢且不稳），改 `config.js` 一处即可
+- [x] 素材已全部上 GitHub Pages 仓库根目录（`luohua/`、`audio/`）；将来迁腾讯云 COS 只改 `config.js` 一行
 - [ ] 小程序后台把资源域名加入 **downloadFile 合法域名**
 - [ ] 换正式 AppID，起正式名字、做 logo
 - [ ] 真机性能过一遍：低端安卓机若掉帧，可把 `core/engine.js` 里粒子池数量减半

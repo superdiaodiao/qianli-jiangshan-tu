@@ -2,6 +2,7 @@ const paintings = require('../../data/paintings.js');
 const geoIndex = require('../../data/geo-index.js');
 const { Engine } = require('../../core/engine.js');
 const { Ambience } = require('../../core/ambience.js');
+const { AUDIO_BASE } = require('../../config.js');
 
 Page({
   data: {
@@ -121,7 +122,7 @@ Page({
       wx.showToast({ title: '此机型暂不支持', icon: 'none' });
       return;
     }
-    const a = new Ambience();
+    const a = new Ambience(AUDIO_BASE);
     if (!a.ok) { wx.showToast({ title: '音频启动失败', icon: 'none' }); return; }
     this.ambience = a;
     this._soundTimer = setInterval(() => {

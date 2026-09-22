@@ -48,9 +48,9 @@ module.exports = [
     tags: ['落花', '流水', '粗沈'],
     line: '山空无人，水流花谢 —— 飘瓣拂过，点水成漪',
     meta: '纸本设色\n纵三五·九厘米\n横六〇·一厘米\n明正德元年\n今藏南京博物院',
-    thumb: '/assets/luohua/mini.jpg',
+    thumb: ASSET_BASE + 'luohua/mini.jpg',
     engine: {
-      assetBase: '/assets/luohua/',   // 先随包本地加载；迁 CDN 后改成远程域名
+      assetBase: ASSET_BASE + 'luohua/',
       geo: 'luohua-geo',
     },
   },
