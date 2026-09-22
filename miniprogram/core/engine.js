@@ -234,6 +234,7 @@ class Engine {
     this.petals = []; this.petalCarry = 0;
     this.fish = []; this.fishInit = false;
     this.snowAcc = 0; this.initSnowDots();
+    this.initClouds();
     this.rings = []; this.splashes = []; this.splashCarry = 0;
     this.drops = [];
     this.walkers = [];
@@ -382,20 +383,11 @@ class Engine {
   }
   weather() {
     const w = this.S.wet;
-    if (this.S.mode === 3)   // 岚：无降水，浓时天色微沉
-      return { overcast: smooth01(w, 0, 0.6) * 0.5, precip: 0, storm: 0 };
     return { overcast: smooth01(w, 0, 0.38), precip: smooth01(w, 0.30, 1), storm: smooth01(w, 0.74, 1) };
   }
   wetLabel() {
     const w = this.S.wet;
     if (this.S.mode === 0) return w < 0.3 ? '晴' : '阴';
-    if (this.S.mode === 3) {
-      if (w < 0.06) return '岚起';
-      if (w < 0.30) return '轻岚';
-      if (w < 0.56) return '淡霭';
-      if (w < 0.78) return '浓雾';
-      return '深霭';
-    }
     const sn = this.S.mode === 2;
     if (w < 0.06) return '将雨';
     if (w < 0.30) return sn ? '疏雪' : '疏雨';
@@ -467,7 +459,11 @@ class Engine {
       const u = ((this.S.x - this.DW * 0.06) + Math.random() * (this.stageW + this.DW * 0.12)) / this.DW * this.AU;
       const v = Math.random() * this.AV;
       if (u >= 0 && u <= this.AU && this.waterAt(u, v) > 0.82) {
-        g.u = u; g.v = v; g.len = 5 + Math.random() * 30; g.ph = 0; g.sp = 0.28 + Math.random() * 0.55; g.live = true; return;
+        // 波光不能比所在水面宽：山涧细流上的长亮条会漫到两岸坡上
+        let len = 5 + Math.random() * 30;
+        while (len > 3.5 && (this.waterAt(u - len / 2, v) < 0.5 || this.waterAt(u + len / 2, v) < 0.5)) len *= 0.5;
+        if (this.waterAt(u - len / 2, v) < 0.5 || this.waterAt(u + len / 2, v) < 0.5) continue;
+        g.u = u; g.v = v; g.len = len; g.ph = 0; g.sp = 0.28 + Math.random() * 0.55; g.live = true; return;
       }
     }
     g.live = false;
@@ -627,23 +623,10 @@ class Engine {
   }
   drawMist(c, dt) {
     // MIST_BOOST：空濛气质的画（如落花诗意图）整体抬雾量。
-    // 岚天候（mode 3）：滑杆是雾量的主宰，时辰只做轻微调制——
-    // 否则正午 0.2 的时辰雾量系数会把滑杆整段吃掉，拉到骤也看不见
-    let amt;
-    if (this.S.mode === 3) {
-      amt = (0.4 + this.S.wet * 1.9) * (this.geo.MIST_BOOST || 1) * (0.7 + this.G.mist * 0.6);
-    } else {
-      amt = this.G.mist * this.SN.mist * (1 + this.WX.precip * 0.85 + this.WX.overcast * 0.35)
-        * (this.geo.MIST_BOOST || 1);
-    }
+    // 晓暮夜与雨天的氛围淡雾，克制为上——大团的天象交给云朵系统
+    const amt = this.G.mist * this.SN.mist * (1 + this.WX.precip * 0.85 + this.WX.overcast * 0.35)
+      * (this.geo.MIST_BOOST || 1);
     if (amt < 0.03) return;
-    // 浓雾的本体是空气：先铺一层随雾量增长的全屏薄纱压对比度
-    // （晴午 amt≈0.2、晓雾 amt≈1 时趋近于零，只有拉高滑杆才显）
-    const haze = Math.max(0, Math.min(0.16, (amt - 0.9) * 0.12));
-    if (haze > 0.005) {
-      c.fillStyle = 'rgba(228,230,226,' + haze.toFixed(3) + ')';
-      c.fillRect(0, 0, this.stageW, this.stageH);
-    }
     c.globalCompositeOperation = 'lighter';
     // 底幔：沿山脊线起伏的三条连续雾带（确定性，不靠随机雾团的运气），
     // 分段拼接、段间重叠，成带不成团；随机雾团在其上叠出流动质感
@@ -807,6 +790,77 @@ class Engine {
       }
     } else this.flashA = 0;
   }
+  /* ===== 云朵 =====
+     留白云气式的扁底软云：预生成几款圆簇压平底的云形，
+     飘在山脊线之上的天空带里，随风缓移，晨昏随时辰染色。 */
+  initClouds() {
+    let seed = 7;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    this.cloudSprites = [];
+    for (let k = 0; k < 3; k++) {
+      this.cloudSprites.push(sprite(220, 120, (c, w, h) => {
+        const base = h * 0.74;
+        for (let i = 0; i < 11; i++) {
+          const cx = w * 0.5 + (rnd() - 0.5) * w * 0.64;
+          const shrink = 1 - Math.abs(cx - w / 2) / (w / 2) * 0.55;
+          const r = h * (0.14 + rnd() * 0.20) * shrink + 6;
+          const cy = base - r * (0.5 + rnd() * 0.55);
+          const g = c.createRadialGradient(cx, cy, 0, cx, cy, r);
+          g.addColorStop(0, 'rgba(255,255,255,.9)');
+          g.addColorStop(0.55, 'rgba(255,255,255,.45)');
+          g.addColorStop(1, 'rgba(255,255,255,0)');
+          c.fillStyle = g; c.fillRect(cx - r, cy - r, r * 2, r * 2);
+        }
+        // 压平云底
+        c.globalCompositeOperation = 'destination-out';
+        const lg = c.createLinearGradient(0, base - 8, 0, base + 14);
+        lg.addColorStop(0, 'rgba(0,0,0,0)'); lg.addColorStop(1, 'rgba(0,0,0,1)');
+        c.fillStyle = lg; c.fillRect(0, base - 8, w, h - base + 8);
+        c.globalCompositeOperation = 'source-over';
+      }));
+    }
+    this._cloudTintC = null; this._cloudTintKey = -1;
+    this.clouds = [];
+    const n = Math.max(3, Math.round(this.AU / 300));
+    for (let i = 0; i < n; i++) {
+      this.clouds.push({ u: rnd() * this.AU, vf: rnd(), sc: 0.7 + rnd() * 0.9,
+        sp: 0.5 + rnd() * 0.8, k: i % 3, a: 0.7 + rnd() * 0.3 });
+    }
+  }
+  tintedCloud(k, col) {
+    const q = v => Math.round(v / 10) * 10;
+    const key = k + ':' + q(col[0]) + ',' + q(col[1]) + ',' + q(col[2]);
+    if (key === this._cloudTintKey) return this._cloudTintC;
+    this._cloudTintKey = key;
+    const SP = this.cloudSprites[k];
+    this._cloudTintC = sprite(220, 120, (c, w, h) => {
+      c.drawImage(SP, 0, 0); c.globalCompositeOperation = 'source-in';
+      // 云体以白为主，向当日光色略偏
+      c.fillStyle = 'rgb(' + Math.round(lerp(255, col[0], 0.35)) + ',' +
+        Math.round(lerp(255, col[1], 0.35)) + ',' + Math.round(lerp(255, col[2], 0.35)) + ')';
+      c.fillRect(0, 0, w, h);
+    });
+    return this._cloudTintC;
+  }
+  drawClouds(c, dt) {
+    if (this.geo.CLOUDS === false || !this.clouds) return;
+    const dim = (0.30 + this.G.bri * 0.55) * (1 + this.WX.overcast * 0.4);
+    for (const cl of this.clouds) {
+      cl.u += dt * cl.sp * 2.4 * this.windNow;
+      if (cl.u > this.AU + 90) cl.u = -90; if (cl.u < -120) cl.u = this.AU + 90;
+      const x = this.SX(cl.u);
+      if (x < -280 || x > this.stageW + 280) continue;
+      const skyMax = this.horizonAt(Math.max(0, Math.min(this.AU, cl.u))) - 46;
+      if (skyMax < 24) continue;
+      const v = 12 + cl.vf * (skyMax - 12);
+      const y = this.SY(v);
+      const w = this.PX(60 * cl.sc), h = w * 0.42;
+      c.globalAlpha = 0.40 * dim * cl.a;
+      c.drawImage(this.tintedCloud(cl.k, this.G.gcol), x - w / 2, y - h / 2, w, h);
+    }
+    c.globalAlpha = 1;
+  }
+
   /* ===== 游鱼（geo.FISH 配置才启用）=====
      墨色鱼影贴水缓游，掩膜约束在水面内，偶尔近水面荡开一圈涟漪 */
   drawFish(c, dt) {
@@ -1079,6 +1133,7 @@ class Engine {
     const c = this.ctx;
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.drawPlate(c);
+    this.drawClouds(c, dt);
     this.drawPrecipFar(c, dt);
     this.drawGlints(c, dt);
     this.drawFish(c, dt);
