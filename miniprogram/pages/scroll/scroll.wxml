@@ -51,7 +51,7 @@
           <view class="scale serif"><text>晓</text><text>午</text><text>暮</text><text>夜</text></view>
         </view>
       </view>
-      <view class="mapWrap" bindtouchstart="onMapTouch" bindtouchmove="onMapTouch">
+      <view class="mapWrap" wx:if="{{!vertical}}" bindtouchstart="onMapTouch" bindtouchmove="onMapTouch">
         <image class="mapImg" src="{{thumb}}" mode="scaleToFill"/>
         <view class="mapBox" style="left:{{mapLeft}}%;width:{{mapWidth}}%"></view>
         <view class="mapTick {{index%2?'b':''}}" wx:for="{{pois}}" wx:key="index"

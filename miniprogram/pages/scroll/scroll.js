@@ -44,6 +44,7 @@ Page({
       thumb: this.painting.thumb,
       pois: this.geo.POIS.map(p => ({ t: p.t, u: p.u })),
       au: this.geo.AU,
+      vertical: !!this.geo.VERTICAL,   // 竖轴：隐藏横向缩略导航
     });
   },
 

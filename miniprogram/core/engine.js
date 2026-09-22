@@ -40,6 +40,7 @@ class Engine {
     const g = this.geo;
     this.AU = g.AU; this.AV = g.AV; this.NT = g.NT;
     this.ART_W = g.ART_W; this.ART_H = g.ART_H;
+    this.VERT = !!g.VERTICAL;   // 竖轴：宽度贴合、上下展卷、贴图按行切
 
     this.S = { x: 0, y: 0, zoom: 1, tod: opts.tod !== undefined ? opts.tod : 0.30,
       todAuto: false, tour: false, t: 0,
@@ -314,10 +315,13 @@ class Engine {
     return this.m2Data[(y * this.m2W + x) * 4 + 1] / 255;
   }
   ensureTiles() {
-    const tw = this.DW / this.NT, m = this.stageW * 1.2;
+    const span = this.VERT ? this.DH : this.DW;
+    const pos = this.VERT ? this.S.y : this.S.x;
+    const view = this.VERT ? this.stageH : this.stageW;
+    const tw = span / this.NT, m = view * 1.2;
     for (let i = 0; i < this.NT; i++) {
       const t = this.tiles[i], l = i * tw;
-      if (!t.set && l + tw > this.S.x - m && l < this.S.x + this.stageW + m) {
+      if (!t.set && l + tw > pos - m && l < pos + view + m) {
         t.set = true;
         const im = this.canvas.createImage();
         im.onload = () => { t.ok = true; this.loadedT++; this.updateBar(); this.startMasks(); };
@@ -350,10 +354,11 @@ class Engine {
 
   /* ===== 版面 ===== */
   layout() {
-    this.scale = (this.stageH / this.ART_H) * this.S.zoom;
+    this.scale = (this.VERT ? this.stageW / this.ART_W : this.stageH / this.ART_H) * this.S.zoom;
     this.DW = this.ART_W * this.scale; this.DH = this.ART_H * this.scale;
     this.maxX = Math.max(0, this.DW - this.stageW);
     this.maxY = Math.max(0, this.DH - this.stageH);
+    this.offX = this.DW < this.stageW ? (this.stageW - this.DW) / 2 : 0;
     this.offY = this.DH < this.stageH ? (this.stageH - this.DH) / 2 : 0;
     this.clampXY(); this.ensureTiles(); this.ensureHi();
   }
@@ -361,7 +366,7 @@ class Engine {
     this.S.x = Math.max(0, Math.min(this.maxX, this.S.x));
     this.S.y = Math.max(0, Math.min(this.maxY, this.S.y));
   }
-  SX(u) { return u / this.AU * this.DW - this.S.x; }
+  SX(u) { return u / this.AU * this.DW - this.S.x + (this.offX || 0); }
   SY(v) { return v / this.AV * this.DH - this.S.y + this.offY; }
   PX(k) { return k / this.AV * this.DH; }
 
@@ -416,16 +421,26 @@ class Engine {
   /* ===== 画贴图与调色 ===== */
   drawPlate(c) {
     c.fillStyle = this.geo.BG || '#8d7d55'; c.fillRect(0, 0, this.stageW, this.stageH);
-    const ty = this.offY - this.S.y;
-    if (this.baseOK) c.drawImage(this.baseIm, -this.S.x, ty, this.DW, this.DH);
-    const tw = this.DW / this.NT;
-    for (let i = 0; i < this.NT; i++) {
-      const x = i * tw - this.S.x;
-      if (x > this.stageW + 2 || x + tw < -2) continue;
-      const t = this.tiles[i];
-      if (t.ok) c.drawImage(t.im, x, ty, tw + 1, this.DH);
-      const h = this.hi[i];
-      if (h.ok) c.drawImage(h.im, x, ty, tw + 1, this.DH);
+    const tx = (this.offX || 0) - this.S.x, ty = this.offY - this.S.y;
+    if (this.baseOK) c.drawImage(this.baseIm, tx, ty, this.DW, this.DH);
+    if (this.VERT) {
+      const th = this.DH / this.NT;
+      for (let i = 0; i < this.NT; i++) {
+        const y = i * th + ty;
+        if (y > this.stageH + 2 || y + th < -2) continue;
+        const t = this.tiles[i];
+        if (t.ok) c.drawImage(t.im, tx, y, this.DW, th + 1);
+      }
+    } else {
+      const tw = this.DW / this.NT;
+      for (let i = 0; i < this.NT; i++) {
+        const x = i * tw - this.S.x;
+        if (x > this.stageW + 2 || x + tw < -2) continue;
+        const t = this.tiles[i];
+        if (t.ok) c.drawImage(t.im, x, ty, tw + 1, this.DH);
+        const h = this.hi[i];
+        if (h.ok) c.drawImage(h.im, x, ty, tw + 1, this.DH);
+      }
     }
     // 调色：multiply 压暗定调，screen 提亮，再用灰罩近似 brightness
     if (this.gradMul) {
@@ -1110,8 +1125,13 @@ class Engine {
 
     if (S.todAuto) S.tod = (S.tod + dt / 150) % 1;
     if (S.tour && !S.drag) {
-      S.x += dt * this.stageW * 0.085;
-      if (S.x >= this.maxX) { S.x = this.maxX; this.setTour(false); }
+      if (this.VERT) {
+        S.y += dt * this.stageH * 0.085;
+        if (S.y >= this.maxY) { S.y = this.maxY; this.setTour(false); }
+      } else {
+        S.x += dt * this.stageW * 0.085;
+        if (S.x >= this.maxX) { S.x = this.maxX; this.setTour(false); }
+      }
     }
     if (!S.drag && Math.abs(S.vx) > 0.05) {
       S.x -= S.vx; S.vx *= Math.pow(0.94, dt * 60);
@@ -1162,8 +1182,9 @@ class Engine {
     }
     this.drawPois(c);
 
-    // 缩略图取景框（有变化才通知页面，免得 setData 刷屏）
-    const left = (S.x / this.DW * 100), w = Math.max(1.2, this.stageW / this.DW * 100);
+    // 缩略图取景框（有变化才通知页面，免得 setData 刷屏）；竖轴按纵向进度
+    const left = this.VERT ? (S.y / this.DH * 100) : (S.x / this.DW * 100);
+    const w = Math.max(1.2, (this.VERT ? this.stageH / this.DH : this.stageW / this.DW) * 100);
     const sig = left.toFixed(1) + '|' + w.toFixed(1);
     if (sig !== this.mapSent) { this.mapSent = sig; this.onMap(left, w); }
   }
@@ -1241,13 +1262,18 @@ class Engine {
     this.openPoi(i);
   }
   jumpFrac(k) {
-    this.S.x = Math.max(0, Math.min(this.maxX, k * this.DW - this.stageW / 2));
+    if (this.VERT) this.S.y = Math.max(0, Math.min(this.maxY, k * this.DH - this.stageH / 2));
+    else this.S.x = Math.max(0, Math.min(this.maxX, k * this.DW - this.stageW / 2));
     this.S.vx = 0; this.setTour(false); this.panT = null;
   }
   setTod(v) { this.S.tod = v; this.setAuto(false); }
   setAuto(v) { if (this.S.todAuto === v) return; this.S.todAuto = v; this.onUI({ autoOn: v }); }
   setTour(v) { if (this.S.tour === v) return; this.S.tour = v; this.onUI({ tourOn: v }); }
-  startTour() { if (!this.S.tour && this.S.x >= this.maxX - 1) this.S.x = 0; this.setTour(!this.S.tour); }
+  startTour() {
+    if (this.VERT) { if (!this.S.tour && this.S.y >= this.maxY - 1) this.S.y = 0; }
+    else if (!this.S.tour && this.S.x >= this.maxX - 1) this.S.x = 0;
+    this.setTour(!this.S.tour);
+  }
   cycleZoom() {
     const ZOOMS = this.geo.ZOOMS || [1, 2.2, 3.8];
     let zi = 0;
