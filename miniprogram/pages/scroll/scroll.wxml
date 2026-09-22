@@ -8,9 +8,16 @@
 
     <view class="bar" style="width:{{barPct}}%;opacity:{{barPct>=100?0:1}}"></view>
 
-    <!-- 同一元素上 catchtouchend 会吞掉自身的 tap 合成，返回逻辑直接挂在 touchend 上 -->
+    <!-- 同一元素上 catchtouchend 会吞掉自身的 tap 合成，动作直接挂在 touchend 上 -->
     <view class="backBtn serif" catchtouchstart="noop" catchtouchmove="noop"
       catchtouchend="goBack" catchtap="goBack">⟨ 画廊</view>
+
+    <view class="fabs">
+      <view class="fab serif {{soundOn?'on':''}}" catchtouchstart="noop" catchtouchmove="noop"
+        catchtouchend="onSoundTap" catchtap="onSoundTap">音</view>
+      <view class="fab serif" catchtouchstart="noop" catchtouchmove="noop"
+        catchtouchend="onSnapTap" catchtap="onSnapTap">存</view>
+    </view>
 
     <view class="intro {{introGone?'gone':''}}" wx:if="{{introShow}}" bindtap="hideIntro">
       <view class="introBox">
@@ -63,8 +70,6 @@
         <view class="btn serif {{autoOn?'on':''}}" bindtap="onAuto">时辰自转</view>
         <view class="btn serif {{tourOn?'on':''}}" bindtap="onTour">巡游</view>
         <view class="btn serif {{zoomOn?'on':''}}" bindtap="onZoom">{{zoomLabel}}</view>
-        <view class="btn serif {{soundOn?'on':''}}" bindtap="onSound">聆音</view>
-        <view class="btn serif" bindtap="onSnapshot">存图</view>
       </view>
       <view class="segBlock">
         <text class="segLabel serif">天候</text>

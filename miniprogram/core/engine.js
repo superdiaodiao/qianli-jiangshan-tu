@@ -738,12 +738,16 @@ class Engine {
       c.beginPath();
       for (let i = L.a; i < L.a + cnt; i++) {
         const d = this.drops[i];
-        d.y += dt * (0.70 + d.s * 0.85) * (0.55 + pr * 0.75) * L.spd;
-        d.x += dt * slant * 0.30 * L.spd;
+        // 帧间拖尾：雨丝向上一帧的位置延伸，相邻帧首尾相接。
+        // 否则雨滴逐帧跳跃 + 视觉暂留 = 每根雨丝拖一个"重影"（截图单帧看不出）
+        const fy = dt * (0.70 + d.s * 0.85) * (0.55 + pr * 0.75) * L.spd;
+        const fx = dt * slant * 0.30 * L.spd;
+        d.y += fy; d.x += fx;
         if (d.y > 1) d.y -= 1; if (d.x > 1) d.x -= 1; if (d.x < 0) d.x += 1;
         const x = fmod(d.x * spanX + ox, spanX) - spanX * 0.115, y = fmod(d.y * spanY + oy, spanY) - spanY * 0.10;
         const len = this.stageH * (0.020 + d.s * 0.034) * (0.5 + pr * 0.8) * L.sz;
-        c.moveTo(x, y); c.lineTo(x + slant * len * 0.85, y + len);
+        c.moveTo(x - fx * spanX, y - fy * spanY);
+        c.lineTo(x + slant * len * 0.85, y + len);
       }
       c.stroke();
     }

@@ -24,7 +24,16 @@
 .openBtn { writing-mode: vertical-rl; font-size: 28rpx; letter-spacing: .34em; color: var(--paper);
   border: 1rpx solid rgba(231,220,196,.38); padding: 30rpx 16rpx; }
 
-.hint { position: absolute; top: calc(env(safe-area-inset-top, 20px) + 16rpx); right: 24rpx;
+/* 右上角悬浮图标：聆音 / 存图 */
+.fabs { position: absolute; top: calc(env(safe-area-inset-top, 20px) + 14rpx); right: 20rpx;
+  display: flex; gap: 14rpx; z-index: 8; }
+.fab { width: 66rpx; height: 66rpx; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; font-size: 27rpx; letter-spacing: 0;
+  color: rgba(231,220,196,.85); border: 1rpx solid rgba(231,220,196,.32);
+  background: rgba(10,14,18,.5); }
+.fab.on { color: var(--ink-900); background: var(--silk); border-color: var(--silk); }
+
+.hint { position: absolute; top: calc(env(safe-area-inset-top, 20px) + 100rpx); right: 24rpx;
   font-size: 20rpx; letter-spacing: .2em; color: rgba(231,220,196,.55); z-index: 4;
   transition: opacity .6s; text-shadow: 0 1rpx 8rpx rgba(0,0,0,.7); text-align: right; line-height: 2;
   white-space: pre-line; }

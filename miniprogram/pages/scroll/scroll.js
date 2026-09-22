@@ -157,6 +157,17 @@ Page({
     if (this.data.soundOn) this.stopSound();
     else this.startSound();
   },
+  // touchend 与 tap 可能双触发，各自防抖
+  onSoundTap() {
+    if (this._sndLock && Date.now() - this._sndLock < 500) return;
+    this._sndLock = Date.now();
+    this.onSound();
+  },
+  onSnapTap() {
+    if (this._snapLock && Date.now() - this._snapLock < 800) return;
+    this._snapLock = Date.now();
+    this.onSnapshot();
+  },
 
   /* ---- 存图：当前画面（无控制台）存入相册 ---- */
   onSnapshot() {
