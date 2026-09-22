@@ -67,6 +67,8 @@
 
 .cRow2 { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding: 16rpx 24rpx 0; flex-wrap: wrap; }
 .btns { display: flex; gap: 12rpx; flex-wrap: wrap; }
+.segBlock { display: flex; align-items: center; gap: 10rpx; }
+.segLabel { font-size: 20rpx; letter-spacing: .2em; color: var(--paper-3); white-space: nowrap; }
 .btn { font-size: 23rpx; letter-spacing: .14em; color: var(--paper-2); border: 1rpx solid var(--line);
   padding: 12rpx 20rpx; white-space: nowrap; }
 .btn.on { color: var(--ink-900); background: var(--silk); border-color: var(--silk); }

@@ -63,12 +63,22 @@
         <view class="btn serif {{autoOn?'on':''}}" bindtap="onAuto">时辰自转</view>
         <view class="btn serif {{tourOn?'on':''}}" bindtap="onTour">巡游</view>
         <view class="btn serif {{zoomOn?'on':''}}" bindtap="onZoom">{{zoomLabel}}</view>
-        <view class="btn serif {{mistIdx===2?'on':''}}" bindtap="onMist">{{mistLabels[mistIdx]}}</view>
       </view>
-      <view class="seg">
-        <view class="segBtn serif {{mode===0?'on':''}}" data-m="0" bindtap="onMode">晴</view>
-        <view class="segBtn serif {{mode===1?'on':''}}" data-m="1" bindtap="onMode">雨</view>
-        <view class="segBtn serif {{mode===2?'on':''}}" data-m="2" bindtap="onMode">雪</view>
+      <view class="segBlock">
+        <text class="segLabel serif">天候</text>
+        <view class="seg">
+          <view class="segBtn serif {{mode===0?'on':''}}" data-m="0" bindtap="onMode">晴</view>
+          <view class="segBtn serif {{mode===1?'on':''}}" data-m="1" bindtap="onMode">雨</view>
+          <view class="segBtn serif {{mode===2?'on':''}}" data-m="2" bindtap="onMode">雪</view>
+        </view>
+      </view>
+      <view class="segBlock">
+        <text class="segLabel serif">岚</text>
+        <view class="seg">
+          <view class="segBtn serif {{mistIdx===0?'on':''}}" data-m="0" bindtap="onMistSeg">无</view>
+          <view class="segBtn serif {{mistIdx===1?'on':''}}" data-m="1" bindtap="onMistSeg">淡</view>
+          <view class="segBtn serif {{mistIdx===2?'on':''}}" data-m="2" bindtap="onMistSeg">浓</view>
+        </view>
       </view>
     </view>
     <view class="cRow3">
