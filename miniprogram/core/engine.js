@@ -720,8 +720,9 @@ class Engine {
     const slant = this.windNow * (snowy ? 1.5 : 1.25) + this.WIND_DIR * (snowy ? 0.10 : 0.35);
     const ox = -this.S.x * L.p, oy = -(this.S.y - this.offY) * L.p * 0.45;
     if (snowy) {
-      // 雪片用软径向渐变精灵，不是硬边正圆
-      const fl = this.tintedFlake(col);
+      // 雪片用软径向渐变精灵，不是硬边正圆。
+      // 颜色不能直接用波光色 gcol（白天偏黄绿，雪片会发绿）：以白为主，只沾一成时辰的光
+      const fl = this.tintedFlake([255 - (255 - col[0]) * 0.12, 255 - (255 - col[1]) * 0.12, 255 - (255 - col[2]) * 0.12]);
       const aBase = 0.86 * L.dim * (0.40 + pr * 0.60);
       for (let i = L.a; i < L.a + cnt; i++) {
         const d = this.drops[i];
