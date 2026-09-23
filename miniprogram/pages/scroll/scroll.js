@@ -80,6 +80,7 @@ Page({
   onUnload() {
     if (this.engine) this.engine.destroy();
     this.stopSound();
+    if (this.ambience) { this.ambience.destroy(); this.ambience = null; }
   },
   onHide() { this.stopSound(true); },
   onShow() { if (this._soundWasOn) this.startSound(); },
@@ -137,26 +138,30 @@ Page({
   onTour() { if (this.engine) { this.engine.startTour(); this.hideIntro(); } },
   onZoom() { if (this.engine) this.engine.cycleZoom(); },
 
-  /* ---- 聆音：合成环境音，强度跟随天候 ---- */
+  /* ---- 聆音：实录环境音，强度跟随天候。音频上下文整页只建一次，开关只 play/pause ---- */
   startSound() {
-    if (this.ambience) return;
-    if (!Ambience.isSupported()) {
-      wx.showToast({ title: '此机型暂不支持', icon: 'none' });
-      return;
+    if (!this.ambience) {
+      if (!Ambience.isSupported()) {
+        wx.showToast({ title: '此机型暂不支持', icon: 'none' });
+        return;
+      }
+      const a = new Ambience(AUDIO_BASE);
+      if (!a.ok) { wx.showToast({ title: '音频启动失败', icon: 'none' }); return; }
+      this.ambience = a;
     }
-    const a = new Ambience(AUDIO_BASE);
-    if (!a.ok) { wx.showToast({ title: '音频启动失败', icon: 'none' }); return; }
-    this.ambience = a;
-    this._soundTimer = setInterval(() => {
-      if (this.engine && this.ambience)
-        this.ambience.update(this.engine.WX, this.engine.S.mode === 2, this.engine.windNow);
-    }, 300);
+    this.ambience.start();
+    if (!this._soundTimer) {
+      this._soundTimer = setInterval(() => {
+        if (this.engine && this.ambience)
+          this.ambience.update(this.engine.WX, this.engine.S.mode === 2, this.engine.windNow);
+      }, 300);
+    }
     this.setData({ soundOn: true });
   },
   stopSound(keepIntent) {
     this._soundWasOn = keepIntent ? this.data.soundOn : false;
     if (this._soundTimer) { clearInterval(this._soundTimer); this._soundTimer = null; }
-    if (this.ambience) { this.ambience.destroy(); this.ambience = null; }
+    if (this.ambience) this.ambience.stop();
     if (!keepIntent) this.setData({ soundOn: false });
   },
   onSound() {

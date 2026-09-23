@@ -248,9 +248,9 @@ class Engine {
     // 远层要读得出"远"：更密、更细短、更慢、稍淡；近层疏而粗快
     // 远层细短慢淡、近层稀疏；总量克制，雨是氛围不是帘子
     this.LAY = [
-      { a: 0, n: 520, p: 0.45, sz: 0.45, spd: 0.60, dim: 0.60 },
-      { a: 520, n: 300, p: 1.0, sz: 1.0, spd: 1.0, dim: 0.80 },
-      { a: 820, n: 110, p: 1.85, sz: 1.6, spd: 1.45, dim: 0.85 },
+      { a: 0, n: 520, p: 0.45, sz: 0.55, spd: 0.60, dim: 0.60 },
+      { a: 520, n: 300, p: 1.0, sz: 1.3, spd: 1.0, dim: 0.80 },
+      { a: 820, n: 110, p: 1.85, sz: 2.1, spd: 1.45, dim: 0.85 },
     ];
     this.POOL = 930;
   }
@@ -738,8 +738,8 @@ class Engine {
       // 雨丝必须沿自身速度方向画。旧写法里横向速度按 spanX、纵向按 spanY 归一化，
       // 竖屏下实际运动近乎垂直，雨丝却斜画——逐帧平移出一排平行重影。
       // 这里先求像素速度，雨丝即速度方向上的一段，长度不短于一帧位移。
-      const aBase = 0.34 * L.dim * (0.42 + pr * 0.58);
-      c.lineWidth = Math.max(0.6, this.stageH * 0.0013 * L.sz);
+      const aBase = 0.38 * L.dim * (0.42 + pr * 0.58);
+      c.lineWidth = Math.max(0.7, this.stageH * 0.0016 * L.sz);   // 真机上嫌细，加粗加长（数量不变）
       const fdt = Math.max(dt, 1 / 60);
       for (let pass = 0; pass < 2; pass++) {
         c.strokeStyle = 'rgba(' + cr + ',' + (aBase * (pass ? 1.15 : 0.7)).toFixed(3) + ')';
@@ -752,7 +752,7 @@ class Engine {
           if (d.y > 1) d.y -= 1; if (d.x > 1) d.x -= 1; if (d.x < 0) d.x += 1;
           const x = fmod(d.x * spanX + ox, spanX) - spanX * 0.115, y = fmod(d.y * spanY + oy, spanY) - spanY * 0.10;
           const v = Math.hypot(vx, vy);
-          const len = Math.max(this.stageH * (0.018 + d.s * 0.026) * (0.6 + pr * 0.6) * L.sz, v * fdt * 1.2);
+          const len = Math.max(this.stageH * (0.024 + d.s * 0.034) * (0.6 + pr * 0.6) * L.sz, v * fdt * 1.2);
           c.moveTo(x - vx / v * len, y - vy / v * len);
           c.lineTo(x, y);
         }
