@@ -168,7 +168,7 @@ class Engine {
     });
     this.SP_FLAKE = sprite(24, 24, (c, w) => {
       const g = c.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
-      g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(255,255,255,.55)');
+      g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,.8)');
       g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, w, w);
     });
     this._lamp = null; this._tintC = null; this._tintKey = '';
@@ -356,7 +356,11 @@ class Engine {
 
   /* ===== 版面 ===== */
   layout() {
-    this.scale = (this.VERT ? this.stageW / this.ART_W : this.stageH / this.ART_H) * this.S.zoom;
+    let base = this.VERT ? this.stageW / this.ART_W : this.stageH / this.ART_H;
+    // 竖轴：宽度贴合后若整幅几乎装得下（渔乐图 1200×1850 在 430×682 里 DH 只有 663），
+    // 就没有可展的余地、"拖不动"；保证画高至少 1.6 屏，左右也随之可拖
+    if (this.VERT && this.ART_H * base < this.stageH * 1.6) base = this.stageH * 1.6 / this.ART_H;
+    this.scale = base * this.S.zoom;
     this.DW = this.ART_W * this.scale; this.DH = this.ART_H * this.scale;
     this.maxX = Math.max(0, this.DW - this.stageW);
     this.maxY = Math.max(0, this.DH - this.stageH);
@@ -722,8 +726,9 @@ class Engine {
     if (snowy) {
       // 雪片用软径向渐变精灵，不是硬边正圆。
       // 颜色不能直接用波光色 gcol（白天偏黄绿，雪片会发绿）：以白为主，只沾一成时辰的光
-      const fl = this.tintedFlake([255 - (255 - col[0]) * 0.12, 255 - (255 - col[1]) * 0.12, 255 - (255 - col[2]) * 0.12]);
-      const aBase = 0.86 * L.dim * (0.40 + pr * 0.60);
+      // 雪片要画实：半透明的白落在黄纸上看着发黄、落在青灰墨色上看着发蓝
+      const fl = this.tintedFlake([255 - (255 - col[0]) * 0.06, 255 - (255 - col[1]) * 0.06, 255 - (255 - col[2]) * 0.06]);
+      const aBase = 1.0 * L.dim * (0.55 + pr * 0.45);
       for (let i = L.a; i < L.a + cnt; i++) {
         const d = this.drops[i];
         d.y += dt * (0.040 + d.s * 0.050) * L.spd;
@@ -731,7 +736,7 @@ class Engine {
         if (d.y > 1) d.y -= 1; if (d.x > 1) d.x -= 1; if (d.x < 0) d.x += 1;
         const x = fmod(d.x * spanX + ox, spanX) - spanX * 0.115, y = fmod(d.y * spanY + oy, spanY) - spanY * 0.10;
         const rr = (0.85 + d.r * 2.0) * L.sz * (0.72 + pr * 0.55) * 1.35;
-        c.globalAlpha = aBase * (0.7 + d.r * 0.3);
+        c.globalAlpha = Math.min(1, aBase * (0.85 + d.r * 0.15));
         c.drawImage(fl, x - rr, y - rr, rr * 2, rr * 2);
       }
       c.globalAlpha = 1;
