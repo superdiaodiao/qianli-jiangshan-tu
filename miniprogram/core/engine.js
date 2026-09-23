@@ -747,13 +747,14 @@ class Engine {
         c.beginPath();
         for (let i = L.a + pass; i < L.a + cnt; i += 2) {
           const d = this.drops[i];
-          const vy = this.stageH * (0.95 + d.s * 1.1) * (0.55 + pr * 0.75) * L.spd;   // px/s
+          const vy = this.stageH * (0.95 + d.s * 1.1) * (0.60 + pr * 0.45) * L.spd;   // px/s（骤雨不再猛提速，雨丝跟着变短）
           const vx = vy * slant * 0.28;
           d.y += vy * dt / spanY; d.x += vx * dt / spanX;
           if (d.y > 1) d.y -= 1; if (d.x > 1) d.x -= 1; if (d.x < 0) d.x += 1;
           const x = fmod(d.x * spanX + ox, spanX) - spanX * 0.115, y = fmod(d.y * spanY + oy, spanY) - spanY * 0.10;
           const v = Math.hypot(vx, vy);
-          const len = Math.max(this.stageH * (0.024 + d.s * 0.034) * (0.6 + pr * 0.6) * L.sz, v * fdt * 1.2);
+          // 粗细随层放大，长度只按 sqrt 放大：大雨时雨丝粗而不拉丝；帧时钳在 1/45s 防掉帧时暴长
+          const len = Math.max(this.stageH * (0.020 + d.s * 0.024) * (0.8 + pr * 0.2) * Math.sqrt(L.sz), v * Math.min(fdt, 1 / 45));
           c.moveTo(x - vx / v * len, y - vy / v * len);
           c.lineTo(x, y);
         }

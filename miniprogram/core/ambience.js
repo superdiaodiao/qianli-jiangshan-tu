@@ -59,9 +59,10 @@ class Ambience {
     if (!this.ok || !this.playing) return;
     this.t += 0.3;
     const pr = wx_.precip;
-    const heavyMix = smooth01(pr, 0.45, 1);
-    const tl = snowy ? 0 : Math.pow(pr, 0.7) * 0.85 * (1 - heavyMix * 0.45);
-    const th = snowy ? 0 : Math.pow(heavyMix, 1.1);
+    // 「盛」(pr≈.66) 时用户嫌小：大雨层提前从 .35 开始进，疏雨层不再压那么多
+    const heavyMix = smooth01(pr, 0.35, 1);
+    const tl = snowy ? 0 : Math.pow(pr, 0.6) * (1 - heavyMix * 0.35);
+    const th = snowy ? 0 : heavyMix;
     const breathe = 0.8 + 0.2 * Math.sin(this.t * 0.3);
     // 晴天也要听得见风：手机外放下 0.1 几乎无声
     const tw = Math.min(1, (0.22 + Math.abs(windNow) * 0.22 + (snowy ? 0.18 + pr * 0.5 : 0) + wx_.storm * 0.25)) * breathe;
