@@ -14,6 +14,7 @@ module.exports = [
     line: '独步千载的青绿长卷，可展卷、可入夜、可听雨',
     meta: '绢本设色\n纵五一·五厘米\n横一一九一·五厘米\n北宋政和三年\n今藏故宫博物院',
     thumb: ASSET_BASE + 'mini.jpg',
+    cover: ASSET_BASE + 'cover.jpg',   // 画廊封面（5:4 局部）；thumb 是导航条
     engine: {
       assetBase: ASSET_BASE,
       geo: 'qljst-geo',
@@ -61,6 +62,7 @@ module.exports = [
     line: '山空无人，水流花谢 —— 飘瓣拂过，点水成漪',
     meta: '纸本设色\n纵三五·九厘米\n横六〇·一厘米\n明正德元年\n今藏南京博物院',
     thumb: ASSET_BASE + 'luohua/mini.jpg',
+    cover: ASSET_BASE + 'luohua/cover.jpg',
     engine: {
       assetBase: ASSET_BASE + 'luohua/',
       geo: 'luohua-geo',
@@ -76,6 +78,7 @@ module.exports = [
     line: '一湾浩渺，渔舟点点 —— 山愈险，水愈闲',
     meta: '绢本设色\n纵二七〇厘米\n横一七三·五厘米\n明\n今藏故宫博物院',
     thumb: ASSET_BASE + 'yule/mini.jpg',
+    cover: ASSET_BASE + 'yule/cover.jpg',
     engine: {
       assetBase: ASSET_BASE + 'yule/',
       geo: 'yule-geo',

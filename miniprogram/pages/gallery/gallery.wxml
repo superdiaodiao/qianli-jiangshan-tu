@@ -9,7 +9,7 @@
       class="pcard {{item.status==='soon'?'soon':''}}"
       data-id="{{item.id}}" data-status="{{item.status}}" bindtap="onOpen">
       <view class="pthumb">
-        <image wx:if="{{item.thumb}}" src="{{item.thumb}}" mode="aspectFill" class="pimg"/>
+        <image wx:if="{{item.cover || item.thumb}}" src="{{item.cover || item.thumb}}" mode="aspectFill" class="pimg"/>
         <view wx:else class="pblank serif">{{item.title[0]}}</view>
         <view class="pveil"></view>
         <view wx:if="{{item.status==='soon'}}" class="psoon serif">备展中</view>
