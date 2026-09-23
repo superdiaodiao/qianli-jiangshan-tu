@@ -28,7 +28,7 @@
     </view>
 
     <view class="hint serif {{hintGone?'gone':''}}" style="top:{{fabTop + 46}}px">
-      <view>拖动展卷 · 双指缩放</view>
+      <view>{{vertical ? '上下拖动展卷' : '左右拖动展卷'}} · 双指缩放</view>
       <view>点水面起涟漪 · 点林木惊飞鸟</view>
       <view>点朱点看释文</view>
     </view>
