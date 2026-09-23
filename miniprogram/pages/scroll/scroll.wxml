@@ -8,18 +8,6 @@
 
     <view class="bar" style="width:{{barPct}}%;opacity:{{barPct>=100?0:1}}"></view>
 
-    <!-- 画布开始绘制后可能压在普通 view 之上（开发者工具里尤甚），
-         常驻按钮用 cover-view 保证在最上层；动作挂 touchend，tap 兜底，JS 里防抖 -->
-    <cover-view class="backBtn" style="top:{{uiTop}}px" catchtouchstart="noop" catchtouchmove="noop"
-      catchtouchend="goBack" catchtap="goBack">⟨ 画廊</cover-view>
-
-    <cover-view class="fabs" style="top:{{fabTop}}px">
-      <cover-view class="fab {{soundOn?'on':''}}" catchtouchstart="noop" catchtouchmove="noop"
-        catchtouchend="onSoundTap" catchtap="onSoundTap">音</cover-view>
-      <cover-view class="fab" catchtouchstart="noop" catchtouchmove="noop"
-        catchtouchend="onSnapTap" catchtap="onSnapTap">存</cover-view>
-    </cover-view>
-
     <view class="intro {{introGone?'gone':''}}" wx:if="{{introShow}}" bindtap="hideIntro">
       <view class="introBox">
         <view class="openBtn serif" catchtap="onOpen">展 卷</view>
@@ -90,6 +78,16 @@
         <view class="scale serif"><text>无</text><text>微</text><text>盛</text><text>骤</text></view>
       </view>
     </view>
+  </view>
+  <!-- 顶部常驻按钮放在画布容器之外、position: fixed —— 与右下「收起」同一写法。
+       放在画布容器内绝对定位时，在模拟器里从未显示过（原因未查明，cover-view 也无效） -->
+  <view class="backBtn serif" style="top:{{uiTop}}px" catchtouchstart="noop" catchtouchmove="noop"
+    catchtouchend="goBack" catchtap="goBack">⟨ 画廊</view>
+  <view class="fabs" style="top:{{fabTop}}px">
+    <view class="fab serif {{soundOn?'on':''}}" catchtouchstart="noop" catchtouchmove="noop"
+      catchtouchend="onSoundTap" catchtap="onSoundTap">音</view>
+    <view class="fab serif" catchtouchstart="noop" catchtouchmove="noop"
+      catchtouchend="onSnapTap" catchtap="onSnapTap">存</view>
   </view>
   <view class="panelToggle serif" bindtap="onPanel">{{panelHidden?'展开':'收起'}}</view>
 </view>

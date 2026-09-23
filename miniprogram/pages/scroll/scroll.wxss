@@ -4,8 +4,8 @@
 
 .bar { position: absolute; top: 0; left: 0; height: 3rpx; background: var(--silk); transition: width .3s ease, opacity .5s; }
 
-.backBtn { position: absolute; top: calc(env(safe-area-inset-top, 20px) + 16rpx); left: 20rpx;
-  font-size: 24rpx; letter-spacing: .12em; color: rgba(231,220,196,.85); z-index: 8;
+.backBtn { position: fixed; top: 60px; left: 20rpx;
+  font-size: 24rpx; letter-spacing: .12em; color: rgba(231,220,196,.85); z-index: 30;
   padding: 10rpx 20rpx; background: rgba(10,14,18,.5); border: 1rpx solid rgba(231,220,196,.28); }
 
 /* 卷首题签 */
@@ -25,8 +25,8 @@
   border: 1rpx solid rgba(231,220,196,.38); padding: 30rpx 16rpx; }
 
 /* 右上角悬浮图标：聆音 / 存图 */
-.fabs { position: absolute; top: calc(env(safe-area-inset-top, 20px) + 14rpx); right: 20rpx;
-  display: flex; flex-direction: row; z-index: 8; }
+.fabs { position: fixed; top: 100px; right: 20rpx;
+  display: flex; flex-direction: row; z-index: 30; }
 .fab { width: 66rpx; height: 66rpx; line-height: 66rpx; text-align: center; margin-left: 14rpx; border-radius: 50%; display: flex;
   align-items: center; justify-content: center; font-size: 27rpx; letter-spacing: 0;
   color: rgba(231,220,196,.85); border: 1rpx solid rgba(231,220,196,.32);
