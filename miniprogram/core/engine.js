@@ -248,11 +248,11 @@ class Engine {
     // 远层要读得出"远"：更密、更细短、更慢、稍淡；近层疏而粗快
     // 远层细短慢淡、近层稀疏；总量克制，雨是氛围不是帘子
     this.LAY = [
-      { a: 0, n: 520, p: 0.45, sz: 0.55, spd: 0.60, dim: 0.60 },
-      { a: 520, n: 300, p: 1.0, sz: 1.3, spd: 1.0, dim: 0.80 },
-      { a: 820, n: 110, p: 1.85, sz: 2.1, spd: 1.45, dim: 0.85 },
+      { a: 0, n: 600, p: 0.45, sz: 0.55, spd: 0.60, dim: 0.60 },
+      { a: 600, n: 340, p: 1.0, sz: 1.3, spd: 1.0, dim: 0.80 },
+      { a: 940, n: 130, p: 1.85, sz: 2.1, spd: 1.45, dim: 0.85 },
     ];
-    this.POOL = 930;
+    this.POOL = 1070;
   }
   ensureDrops() {
     if (this.drops.length) return;
@@ -718,7 +718,8 @@ class Engine {
   }
   drawLayerP(c, dt, L, pr, snowy) {
     const dens = Math.max(0.42, Math.min(1.08, (this.stageW * this.stageH) / 1595520));
-    const cnt = Math.floor(L.n * pr * dens); if (cnt < 1) return;
+    // 密度按雨量 1.5 次方走：微雨真稀、骤雨真密，滑杆的变化看得出来（声音同步跟随）
+    const cnt = Math.floor(L.n * Math.pow(pr, 1.5) * dens); if (cnt < 1) return;
     const col = this.G.gcol, cr = (col[0] | 0) + ',' + (col[1] | 0) + ',' + (col[2] | 0);
     const spanX = this.stageW * 1.3, spanY = this.stageH * 1.25;
     const slant = this.windNow * (snowy ? 1.5 : 1.25) + this.WIND_DIR * (snowy ? 0.10 : 0.35);
@@ -913,17 +914,28 @@ class Engine {
       if (x < -30 || x > this.stageW + 30 || y < -30 || y > this.stageH + 30) continue;
       if (f.ringT <= 0) { f.ringT = 5 + Math.random() * 10; this.addRing(f.u, f.v, 0.3); }
       const depth = Math.max(0, Math.min(1, (f.v - 120) / 190));
-      const s = this.PX(0.85) * (0.65 + depth * 0.55);
-      const a = 0.34;
+      // 大小按画配置（F.size）：落花诗意图水面小、画幅短，默认尺寸只有几像素，找不到
+      const s = this.PX(0.85) * (0.65 + depth * 0.55) * (F.size || 1);
+      const a = F.alpha || 0.34;
+      const rgb = (ink[0] | 0) + ',' + (ink[1] | 0) + ',' + (ink[2] | 0);
+      const tw = Math.sin(f.ph) * s * 0.9;   // 尾鳍摆动
+      const body = () => {
+        // 纺锤形鱼身 + 分叉尾：比椭圆更像鱼
+        c.beginPath(); c.moveTo(s * 2.3, 0);
+        c.quadraticCurveTo(s * 0.6, -s * 0.95, -s * 1.6, -s * 0.32);
+        c.quadraticCurveTo(-s * 2.0, 0, -s * 1.6, s * 0.32);
+        c.quadraticCurveTo(s * 0.6, s * 0.95, s * 2.3, 0); c.fill();
+        c.beginPath(); c.moveTo(-s * 1.5, 0);
+        c.lineTo(-s * 3.3, tw - s * 0.75); c.lineTo(-s * 2.6, tw); c.lineTo(-s * 3.3, tw + s * 0.75);
+        c.closePath(); c.fill();
+      };
       c.save(); c.translate(x, y);
       c.rotate(Math.atan2(Math.sin(f.ang) * 0.45, Math.cos(f.ang)));
-      c.fillStyle = 'rgba(' + (ink[0] | 0) + ',' + (ink[1] | 0) + ',' + (ink[2] | 0) + ',' + a + ')';
-      c.beginPath(); c.ellipse(0, 0, s * 2.1, s * 0.75, 0, 0, 6.2832); c.fill();
-      const tw = Math.sin(f.ph) * s * 0.9;   // 尾鳍摆动
-      c.beginPath(); c.moveTo(-s * 1.8, 0);
-      c.quadraticCurveTo(-s * 2.9, tw * 0.4, -s * 3.4, tw);
-      c.quadraticCurveTo(-s * 2.8, tw * 0.6, -s * 1.8, 0);
-      c.fill();
+      // 水底淡影：错开半个身位、更淡，鱼看着就沉在水里
+      c.fillStyle = 'rgba(' + rgb + ',' + (a * 0.35).toFixed(3) + ')';
+      c.save(); c.translate(s * 0.4, s * 0.9); body(); c.restore();
+      c.fillStyle = 'rgba(' + rgb + ',' + a + ')';
+      body();
       c.restore();
     }
   }

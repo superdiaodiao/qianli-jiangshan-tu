@@ -13,10 +13,17 @@
     <view class="backBtn serif" style="top:{{uiTop}}px" catchtouchstart="noop" catchtouchmove="noop"
       catchtouchend="goBack" catchtap="goBack">⟨ 画廊</view>
     <view class="fabs" style="top:{{fabTop}}px">
-      <view class="fab serif {{soundOn?'on':''}}" catchtouchstart="noop" catchtouchmove="noop"
-        catchtouchend="onSoundTap" catchtap="onSoundTap">音</view>
-      <view class="fab serif" catchtouchstart="noop" catchtouchmove="noop"
-        catchtouchend="onSnapTap" catchtap="onSnapTap">存</view>
+      <view class="fab ico-sound {{soundOn?'on':''}}" catchtouchstart="noop" catchtouchmove="noop"
+        catchtouchend="onSoundTap" catchtap="onSoundTap"></view>
+      <view class="fab ico-save" catchtouchstart="noop" catchtouchmove="noop"
+        catchtouchend="onSnapTap" catchtap="onSnapTap"></view>
+    </view>
+
+    <!-- 竖轴：右侧竖向缩略图，框出当前视窗，点/拖跳转（横卷的缩略图在控制台里） -->
+    <view class="vmap" wx:if="{{vertical}}" style="top:{{fabTop + 62}}px;width:{{vmapW}}px;height:{{vmapH}}px"
+      catchtouchstart="onVMapTouch" catchtouchmove="onVMapTouch" catchtouchend="noop">
+      <image class="vmapImg" src="{{thumb}}" mode="scaleToFill"/>
+      <view class="vmapBox" style="top:{{mapLeft}}%;height:{{mapWidth}}%"></view>
     </view>
 
     <view class="intro {{introGone?'gone':''}}" wx:if="{{introShow}}" bindtap="hideIntro">
@@ -48,6 +55,15 @@
       <view class="chip serif {{activePoi===index?'on':''}}" wx:for="{{pois}}" wx:key="index"
         data-i="{{index}}" bindtap="onChip">{{item.t}}</view>
     </scroll-view>
+    <!-- 横卷缩略图独占一行、通栏：长卷 23:1，塞在半行里只能拉糊 -->
+    <view class="mapRow" wx:if="{{!vertical}}">
+      <view class="mapWrap" bindtouchstart="onMapTouch" bindtouchmove="onMapTouch">
+        <image class="mapImg" src="{{thumb}}" mode="scaleToFill"/>
+        <view class="mapBox" style="left:{{mapLeft}}%;width:{{mapWidth}}%"></view>
+        <view class="mapTick {{index%2?'b':''}}" wx:for="{{pois}}" wx:key="index"
+          style="left:{{item.u/au*100}}%"></view>
+      </view>
+    </view>
     <view class="cRow">
       <view class="todBlock">
         <view class="todName serif">{{todName}}</view>
@@ -57,12 +73,6 @@
             bindchanging="onTod" bindchange="onTod"/>
           <view class="scale serif"><text>晓</text><text>午</text><text>暮</text><text>夜</text></view>
         </view>
-      </view>
-      <view class="mapWrap" wx:if="{{!vertical}}" bindtouchstart="onMapTouch" bindtouchmove="onMapTouch">
-        <image class="mapImg" src="{{thumb}}" mode="scaleToFill"/>
-        <view class="mapBox" style="left:{{mapLeft}}%;width:{{mapWidth}}%"></view>
-        <view class="mapTick {{index%2?'b':''}}" wx:for="{{pois}}" wx:key="index"
-          style="left:{{item.u/au*100}}%"></view>
       </view>
     </view>
     <view class="cRow2">

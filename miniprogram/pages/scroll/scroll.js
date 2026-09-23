@@ -50,7 +50,8 @@ Page({
       thumb: this.painting.thumb,
       pois: this.geo.POIS.map(p => ({ t: p.t, u: p.u })),
       au: this.geo.AU,
-      vertical: !!this.geo.VERTICAL,   // 竖轴：隐藏横向缩略导航
+      vertical: !!this.geo.VERTICAL,   // 竖轴：隐藏横向缩略导航，改用右侧竖向缩略图
+      vmapW: 64, vmapH: Math.round(64 * this.geo.AV / this.geo.AU),
     });
   },
 
@@ -165,7 +166,7 @@ Page({
     if (!keepIntent) this.setData({ soundOn: false });
   },
   onSound() {
-    if (this.data.soundOn) this.stopSound();
+    if (this.data.soundOn) { this.stopSound(); this._soundUserOff = true; }   // 手动关过就不再自动开
     else this.startSound();
   },
   // touchend 与 tap 可能双触发，各自防抖
@@ -210,6 +211,20 @@ Page({
     const m = +e.currentTarget.dataset.m;
     if (this.engine) { this.engine.setMode(m); this.hideIntro(); }
     this.setData({ mode: m });
+    // 选了雨/雪就顺手把环境音打开；用户主动关过的不打扰
+    if (m !== 0 && !this.data.soundOn && !this._soundUserOff) this.startSound();
+  },
+  onVMapTouch(e) {
+    const t = e.touches && e.touches[0]; if (!t || !this.engine) return;
+    const go = rect => {
+      const k = Math.max(0, Math.min(1, (t.clientY - rect.top) / rect.height));
+      this.engine.jumpFrac(k);
+      this.hideIntro();
+    };
+    if (this._vmapRect) { go(this._vmapRect); return; }
+    wx.createSelectorQuery().in(this).select('.vmap').boundingClientRect(r => {
+      if (r) { this._vmapRect = r; go(r); }
+    }).exec();
   },
   onChip(e) {
     const i = +e.currentTarget.dataset.i;
@@ -233,7 +248,7 @@ Page({
 
   onPanel() {
     this.setData({ panelHidden: !this.data.panelHidden }, () => {
-      this._mapRect = null;
+      this._mapRect = null; this._vmapRect = null;
       wx.createSelectorQuery().in(this).select('#stage').fields({ size: true }).exec(res => {
         if (res && res[0] && this.engine) this.engine.resize(res[0].width, res[0].height);
       });

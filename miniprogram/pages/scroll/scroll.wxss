@@ -10,9 +10,24 @@
   padding: 10rpx 20rpx; background: rgba(10,14,18,.5); border: 1rpx solid rgba(231,220,196,.28); }
 .fabs { position: absolute; top: 100px; right: 20rpx; z-index: 8; display: flex; }
 .fab { width: 66rpx; height: 66rpx; margin-left: 14rpx; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; font-size: 27rpx;
-  color: rgba(231,220,196,.85); border: 1rpx solid rgba(231,220,196,.32); background: rgba(10,14,18,.5); }
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(231,220,196,.88); border: 1rpx solid rgba(231,220,196,.32); background: rgba(10,14,18,.5); }
 .fab.on { color: var(--ink-900); background: var(--silk); border-color: var(--silk); }
+/* 图标用 SVG 遮罩画，颜色跟随 color，开启态自动反色 */
+.fab::after { content: ''; width: 34rpx; height: 34rpx; background: currentColor;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain; }
+.ico-sound::after { -webkit-mask-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11 5L6 9H2v6h4l5 4V5z' fill='%23000'/%3E%3Cpath d='M15.5 8.5a5 5 0 0 1 0 7'/%3E%3Cpath d='M18.5 5.5a9 9 0 0 1 0 13'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11 5L6 9H2v6h4l5 4V5z' fill='%23000'/%3E%3Cpath d='M15.5 8.5a5 5 0 0 1 0 7'/%3E%3Cpath d='M18.5 5.5a9 9 0 0 1 0 13'/%3E%3C/svg%3E"); }
+.ico-save::after { -webkit-mask-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='16' rx='2'/%3E%3Ccircle cx='8.5' cy='9.5' r='1.6' fill='%23000' stroke='none'/%3E%3Cpath d='M21 16l-5-5-7 7'/%3E%3Cpath d='M3 18l4-4 3 3'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='16' rx='2'/%3E%3Ccircle cx='8.5' cy='9.5' r='1.6' fill='%23000' stroke='none'/%3E%3Cpath d='M21 16l-5-5-7 7'/%3E%3Cpath d='M3 18l4-4 3 3'/%3E%3C/svg%3E"); }
+
+/* 竖轴缩略图 */
+.vmap { position: absolute; right: 20rpx; z-index: 7; overflow: hidden;
+  border: 1rpx solid rgba(231,220,196,.38); background: rgba(10,14,18,.4); }
+.vmapImg { display: block; width: 100%; height: 100%; opacity: .72; }
+.vmapBox { position: absolute; left: 0; width: 100%; box-sizing: border-box; min-height: 4rpx;
+  border: 1rpx solid var(--silk); background: rgba(201,169,105,.20); }
 
 /* 卷首题签 */
 .intro { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex;
@@ -63,9 +78,10 @@
 .rng { margin: 0 8rpx; }
 .scale { display: flex; justify-content: space-between; font-size: 17rpx; letter-spacing: .14em;
   color: var(--paper-3); padding: 0 16rpx; }
-.mapWrap { position: relative; flex: 1; height: 72rpx; border: 1rpx solid var(--line-soft);
-  overflow: hidden; background: #6f6444; }
-.mapImg { width: 100%; height: 100%; opacity: .62; }
+.mapRow { padding: 14rpx 24rpx 0; }
+.mapWrap { position: relative; width: 100%; height: 56rpx; border: 1rpx solid var(--line-soft);
+  overflow: hidden; background: #6f6444; box-sizing: border-box; }
+.mapImg { display: block; width: 100%; height: 100%; opacity: .78; }
 .mapBox { position: absolute; top: 0; height: 100%; border: 1rpx solid var(--silk);
   background: rgba(201,169,105,.16); min-width: 4rpx; }
 .mapTick { position: absolute; top: 0; width: 2rpx; height: 10rpx; background: var(--cinnabar); }
