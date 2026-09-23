@@ -30,21 +30,9 @@ Page({
     cardOn: false, cardT: '', cardD: '', activePoi: -1,
     panelHidden: false,
     soundOn: false,
-    uiTop: 60, fabTop: 100,   // 按胶囊实测位置覆盖（onLoad）
   },
 
   onLoad(q) {
-    // 顶部浮层不能靠 env(safe-area-inset-top)：部分环境返回 0 会缩进刘海，
-    // 右上图标还会垫在微信胶囊底下。以胶囊实测矩形为基准：
-    // 返回键与胶囊同排，音/存图标排在胶囊正下方
-    try {
-      const mb = wx.getMenuButtonBoundingClientRect();
-      if (mb && mb.top) this.setData({ uiTop: mb.top, fabTop: mb.bottom + 10 });
-    } catch (e) {
-      const s = (wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()) || {};
-      const t = (s.statusBarHeight || 24) + 6;
-      this.setData({ uiTop: t, fabTop: t + 42 });
-    }
     const id = (q && q.id) || 'qljst';
     this.painting = paintings.find(p => p.id === id && p.status === 'ready') || paintings[0];
     this.geo = geoIndex[this.painting.engine.geo];

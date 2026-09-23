@@ -32,11 +32,19 @@
   </view>
 
   <view class="console" wx:if="{{!panelHidden}}">
-    <scroll-view class="guide" scroll-x enhanced show-scrollbar="{{false}}">
-      <view class="guideLabel serif">导览</view>
-      <view class="chip serif {{activePoi===index?'on':''}}" wx:for="{{pois}}" wx:key="index"
-        data-i="{{index}}" bindtap="onChip">{{item.t}}</view>
-    </scroll-view>
+    <view class="guideRow">
+      <view class="rbtn serif" catchtouchstart="noop" catchtouchmove="noop"
+        catchtouchend="goBack" catchtap="goBack">⟨</view>
+      <scroll-view class="guide" scroll-x enhanced show-scrollbar="{{false}}">
+        <view class="guideLabel serif">导览</view>
+        <view class="chip serif {{activePoi===index?'on':''}}" wx:for="{{pois}}" wx:key="index"
+          data-i="{{index}}" bindtap="onChip">{{item.t}}</view>
+      </scroll-view>
+      <view class="rbtn serif {{soundOn?'on':''}}" catchtouchstart="noop" catchtouchmove="noop"
+        catchtouchend="onSoundTap" catchtap="onSoundTap">音</view>
+      <view class="rbtn serif" catchtouchstart="noop" catchtouchmove="noop"
+        catchtouchend="onSnapTap" catchtap="onSnapTap">存</view>
+    </view>
     <view class="cRow">
       <view class="todBlock">
         <view class="todName serif">{{todName}}</view>
@@ -78,16 +86,6 @@
         <view class="scale serif"><text>无</text><text>微</text><text>盛</text><text>骤</text></view>
       </view>
     </view>
-  </view>
-  <!-- 顶部常驻按钮放在画布容器之外、position: fixed —— 与右下「收起」同一写法。
-       放在画布容器内绝对定位时，在模拟器里从未显示过（原因未查明，cover-view 也无效） -->
-  <view class="backBtn serif" style="top:{{uiTop}}px" catchtouchstart="noop" catchtouchmove="noop"
-    catchtouchend="goBack" catchtap="goBack">⟨ 画廊</view>
-  <view class="fabs" style="top:{{fabTop}}px">
-    <view class="fab serif {{soundOn?'on':''}}" catchtouchstart="noop" catchtouchmove="noop"
-      catchtouchend="onSoundTap" catchtap="onSoundTap">音</view>
-    <view class="fab serif" catchtouchstart="noop" catchtouchmove="noop"
-      catchtouchend="onSnapTap" catchtap="onSnapTap">存</view>
   </view>
   <view class="panelToggle serif" bindtap="onPanel">{{panelHidden?'展开':'收起'}}</view>
 </view>
