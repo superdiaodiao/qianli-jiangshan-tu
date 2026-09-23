@@ -8,6 +8,17 @@
 
     <view class="bar" style="width:{{barPct}}%;opacity:{{barPct>=100?0:1}}"></view>
 
+    <!-- 悬浮按钮：返回键与胶囊同排，音/存在胶囊正下方；位置由 onLoad 按胶囊实测写入。
+         动作挂 touchend（同元素 catch 会吞 tap），tap 兜底，JS 里防抖 -->
+    <view class="backBtn serif" style="top:{{uiTop}}px" catchtouchstart="noop" catchtouchmove="noop"
+      catchtouchend="goBack" catchtap="goBack">⟨ 画廊</view>
+    <view class="fabs" style="top:{{fabTop}}px">
+      <view class="fab serif {{soundOn?'on':''}}" catchtouchstart="noop" catchtouchmove="noop"
+        catchtouchend="onSoundTap" catchtap="onSoundTap">音</view>
+      <view class="fab serif" catchtouchstart="noop" catchtouchmove="noop"
+        catchtouchend="onSnapTap" catchtap="onSnapTap">存</view>
+    </view>
+
     <view class="intro {{introGone?'gone':''}}" wx:if="{{introShow}}" bindtap="hideIntro">
       <view class="introBox">
         <view class="openBtn serif" catchtap="onOpen">展 卷</view>
@@ -16,7 +27,7 @@
       </view>
     </view>
 
-    <view class="hint serif {{hintGone?'gone':''}}">
+    <view class="hint serif {{hintGone?'gone':''}}" style="top:{{fabTop + 46}}px">
       <view>拖动展卷 · 双指缩放</view>
       <view>点水面起涟漪 · 点林木惊飞鸟</view>
       <view>点朱点看释文</view>
@@ -32,19 +43,11 @@
   </view>
 
   <view class="console" wx:if="{{!panelHidden}}">
-    <view class="guideRow">
-      <view class="rbtn serif" catchtouchstart="noop" catchtouchmove="noop"
-        catchtouchend="goBack" catchtap="goBack">⟨</view>
-      <scroll-view class="guide" scroll-x enhanced show-scrollbar="{{false}}">
-        <view class="guideLabel serif">导览</view>
-        <view class="chip serif {{activePoi===index?'on':''}}" wx:for="{{pois}}" wx:key="index"
-          data-i="{{index}}" bindtap="onChip">{{item.t}}</view>
-      </scroll-view>
-      <view class="rbtn serif {{soundOn?'on':''}}" catchtouchstart="noop" catchtouchmove="noop"
-        catchtouchend="onSoundTap" catchtap="onSoundTap">音</view>
-      <view class="rbtn serif" catchtouchstart="noop" catchtouchmove="noop"
-        catchtouchend="onSnapTap" catchtap="onSnapTap">存</view>
-    </view>
+    <scroll-view class="guide" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="guideLabel serif">导览</view>
+      <view class="chip serif {{activePoi===index?'on':''}}" wx:for="{{pois}}" wx:key="index"
+        data-i="{{index}}" bindtap="onChip">{{item.t}}</view>
+    </scroll-view>
     <view class="cRow">
       <view class="todBlock">
         <view class="todName serif">{{todName}}</view>

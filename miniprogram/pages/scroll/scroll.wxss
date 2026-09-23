@@ -4,6 +4,16 @@
 
 .bar { position: absolute; top: 0; left: 0; height: 3rpx; background: var(--silk); transition: width .3s ease, opacity .5s; }
 
+/* 悬浮按钮（top 由 onLoad 按胶囊实测写入） */
+.backBtn { position: absolute; top: 60px; left: 20rpx; z-index: 8;
+  font-size: 24rpx; letter-spacing: .12em; color: rgba(231,220,196,.85);
+  padding: 10rpx 20rpx; background: rgba(10,14,18,.5); border: 1rpx solid rgba(231,220,196,.28); }
+.fabs { position: absolute; top: 100px; right: 20rpx; z-index: 8; display: flex; }
+.fab { width: 66rpx; height: 66rpx; margin-left: 14rpx; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 27rpx;
+  color: rgba(231,220,196,.85); border: 1rpx solid rgba(231,220,196,.32); background: rgba(10,14,18,.5); }
+.fab.on { color: var(--ink-900); background: var(--silk); border-color: var(--silk); }
+
 /* 卷首题签 */
 .intro { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex;
   align-items: center; justify-content: center; z-index: 5;
@@ -39,13 +49,7 @@
 /* 控制台 */
 .console { background: linear-gradient(180deg, var(--ink-800), var(--ink-900));
   border-top: 1rpx solid var(--line-soft); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 60rpx); }
-.guideRow { display: flex; align-items: center; padding: 12rpx 16rpx; border-bottom: 1rpx solid var(--line-soft); }
-.guide { flex: 1; min-width: 0; display: flex; white-space: nowrap; padding: 4rpx 8rpx; }
-/* 导览行两端的圆钮：返回 / 聆音 / 存图 */
-.rbtn { flex: 0 0 auto; width: 60rpx; height: 60rpx; border-radius: 50%; margin: 0 6rpx;
-  display: flex; align-items: center; justify-content: center; font-size: 26rpx;
-  color: var(--paper-2); border: 1rpx solid var(--line); background: rgba(10,14,18,.35); }
-.rbtn.on { color: var(--ink-900); background: var(--silk); border-color: var(--silk); }
+.guide { display: flex; white-space: nowrap; padding: 16rpx 24rpx; border-bottom: 1rpx solid var(--line-soft); }
 .guideLabel { display: inline-block; font-size: 20rpx; letter-spacing: .3em; color: var(--paper-3);
   padding: 10rpx 8rpx 0 0; }
 .chip { display: inline-block; font-size: 23rpx; letter-spacing: .12em; color: var(--paper-2);

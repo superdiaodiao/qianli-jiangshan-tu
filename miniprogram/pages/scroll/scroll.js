@@ -30,9 +30,15 @@ Page({
     cardOn: false, cardT: '', cardD: '', activePoi: -1,
     panelHidden: false,
     soundOn: false,
+    uiTop: 60, fabTop: 100,   // onLoad 按胶囊实测覆盖
   },
 
   onLoad(q) {
+    // 悬浮按钮定位以微信胶囊实测矩形为基准：返回键与胶囊同排，音/存在胶囊正下方
+    try {
+      const mb = wx.getMenuButtonBoundingClientRect();
+      if (mb && mb.top > 0 && mb.top < 200) this.setData({ uiTop: mb.top, fabTop: mb.bottom + 10 });
+    } catch (e) { /* 取不到就用默认值 */ }
     const id = (q && q.id) || 'qljst';
     this.painting = paintings.find(p => p.id === id && p.status === 'ready') || paintings[0];
     this.geo = geoIndex[this.painting.engine.geo];
