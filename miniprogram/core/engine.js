@@ -175,8 +175,8 @@ class Engine {
     });
     /* 电影感的雪：
        - 絮团：几粒软冰晶粘成的不规则一团（6 款），底下垫一圈极淡灰边——
-         亮背景上的真雪靠暗边读出来，纯白圆点落在米色纸上等于看不见；
-       - 光斑：离镜头近、失焦的雪是又大又虚的圆斑（这里圆才是对的）。 */
+         亮背景上的真雪靠暗边读出来，纯白圆点落在米色纸上等于看不见。
+       不用失焦光斑：画不是镜头拍的，淡圆斑在画上只会读成圆形的雪。 */
     this.SP_FLAKES = [];
     for (let k = 0; k < 6; k++) {
       this.SP_FLAKES.push(sprite(32, 32, (c, w) => {
@@ -194,12 +194,6 @@ class Engine {
         for (const b of blobs) blob(b[0], b[1], b[2], a => 'rgba(255,255,255,' + a.toFixed(3) + ')');
       }));
     }
-    this.SP_BOKEH = sprite(48, 48, (c, w) => {
-      const g = c.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
-      g.addColorStop(0, 'rgba(255,255,255,.55)'); g.addColorStop(0.62, 'rgba(255,255,255,.42)');
-      g.addColorStop(0.82, 'rgba(255,255,255,.16)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-      c.fillStyle = g; c.fillRect(0, 0, w, w);
-    });
     this._lamp = null; this._tintC = null; this._tintKey = '';
     this._flakeC = null; this._flakeKey = '';
   }
@@ -795,13 +789,10 @@ class Engine {
           c.drawImage(fl, x - rr, y - rr, rr * 2, rr * 2);
           continue;
         }
-        if (layer === 2) {                       // 近：失焦光斑
-          rr *= 2.4;
-          c.globalAlpha = Math.min(1, aBase * (0.45 + d.r * 0.3));
-          c.drawImage(this.SP_BOKEH, x - rr, y - rr, rr * 2, rr * 2);
-          continue;
-        }
-        // 中：絮团。翻转 = 横向压扁 + 亮度微闪；拖影 = 沿速度方向拉长
+        // 近层不用失焦光斑：画不是镜头拍的，淡圆斑在画上只会读成"圆形的雪"（用户否了）。
+        // 近层也画絮团，只是更大、下落更快、拖影更长
+        if (layer === 2) rr *= 1.35;
+        // 中、近：絮团。翻转 = 横向压扁 + 亮度微闪；拖影 = 沿速度方向拉长
         const vx = fx * spanX, vy = fy * spanY, sp = Math.hypot(vx, vy);
         const ph = t * (1.1 + d.s * 1.7) + d.r * 23;
         const w = rr * 3.2 * (0.45 + 0.55 * Math.abs(Math.cos(ph)));
