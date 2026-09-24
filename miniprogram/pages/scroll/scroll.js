@@ -52,6 +52,8 @@ Page({
       au: this.geo.AU,
       vertical: !!this.geo.VERTICAL,   // 竖轴：隐藏横向缩略导航，改用右侧竖向缩略图
       vmapW: 64, vmapH: Math.round(64 * this.geo.AV / this.geo.AU),
+      noRain: !!(this.geo.MODES && this.geo.MODES.indexOf(1) < 0),   // 雪景画不下雨
+      hintTap: this.geo.HINT_TAP || '点水面起涟漪 · 点林木惊飞鸟',
     });
   },
 
@@ -118,6 +120,8 @@ Page({
   /* ---- 卷首 ---- */
   hideIntro() {
     if (this._introHidden) return; this._introHidden = true;
+    // 一打开就在下雪的画：展卷即起环境音（总由手势触发）；用户手动关过的不打扰
+    if (this.geo.DEFAULT_WX && !this.data.soundOn && !this._soundUserOff) this.startSound();
     this.setData({ introGone: true });
     setTimeout(() => this.setData({ introShow: false }), 950);
     setTimeout(() => this.setData({ hintGone: true }), 7000);
@@ -146,7 +150,7 @@ Page({
         wx.showToast({ title: '此机型暂不支持', icon: 'none' });
         return;
       }
-      const a = new Ambience(AUDIO_BASE);
+      const a = new Ambience(AUDIO_BASE, { bell: !!this.geo.BELL });
       if (!a.ok) { wx.showToast({ title: '音频启动失败', icon: 'none' }); return; }
       this.ambience = a;
     }
@@ -154,7 +158,7 @@ Page({
     if (!this._soundTimer) {
       this._soundTimer = setInterval(() => {
         if (this.engine && this.ambience)
-          this.ambience.update(this.engine.WX, this.engine.S.mode === 2, this.engine.windNow);
+          this.ambience.update(this.engine.WX, this.engine.S.mode === 2, this.engine.windNow, this.engine.G.lamp);
       }, 300);
     }
     this.setData({ soundOn: true });

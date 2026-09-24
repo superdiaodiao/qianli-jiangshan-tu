@@ -45,6 +45,8 @@ class Engine {
     this.S = { x: 0, y: 0, zoom: 1, tod: opts.tod !== undefined ? opts.tod : 0.30,
       todAuto: false, tour: false, t: 0,
       vx: 0, drag: false, mode: 0, wet: 0, zoomTo: 1 };
+    if (g.DEFAULT_WX) { this.S.mode = g.DEFAULT_WX.mode; this.S.wet = g.DEFAULT_WX.wet; }   // 雪景画一打开就在下雪
+    this.gust = { t: 0, dur: 0, amp: 0, next: 6 }; this.gustEnv = 0;
     this.stageW = 1; this.stageH = 1; this.DW = 0; this.DH = 0;
     this.maxX = 0; this.maxY = 0; this.offY = 0;
     this.windNow = 0.4; this.WIND_DIR = 1;
@@ -171,6 +173,33 @@ class Engine {
       g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,.8)');
       g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, w, w);
     });
+    /* 电影感的雪：
+       - 絮团：几粒软冰晶粘成的不规则一团（6 款），底下垫一圈极淡灰边——
+         亮背景上的真雪靠暗边读出来，纯白圆点落在米色纸上等于看不见；
+       - 光斑：离镜头近、失焦的雪是又大又虚的圆斑（这里圆才是对的）。 */
+    this.SP_FLAKES = [];
+    for (let k = 0; k < 6; k++) {
+      this.SP_FLAKES.push(sprite(32, 32, (c, w) => {
+        const blobs = [], n = 3 + ((Math.random() * 4) | 0);
+        for (let i = 0; i < n; i++) {
+          const a = Math.random() * 6.28, r = i ? 2 + Math.random() * 5 : 0;
+          blobs.push([w / 2 + Math.cos(a) * r, w / 2 + Math.sin(a) * r * 0.8, 3.2 + Math.random() * 3.4]);
+        }
+        const blob = (x, y, r, col) => {
+          const g = c.createRadialGradient(x, y, 0, x, y, r);
+          g.addColorStop(0, col(1)); g.addColorStop(0.55, col(0.75)); g.addColorStop(1, col(0));
+          c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 6.2832); c.fill();
+        };
+        for (const b of blobs) blob(b[0] + 0.6, b[1] + 1, b[2] * 1.4, a => 'rgba(52,56,66,' + (a * 0.3).toFixed(3) + ')');
+        for (const b of blobs) blob(b[0], b[1], b[2], a => 'rgba(255,255,255,' + a.toFixed(3) + ')');
+      }));
+    }
+    this.SP_BOKEH = sprite(48, 48, (c, w) => {
+      const g = c.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+      g.addColorStop(0, 'rgba(255,255,255,.55)'); g.addColorStop(0.62, 'rgba(255,255,255,.42)');
+      g.addColorStop(0.82, 'rgba(255,255,255,.16)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = g; c.fillRect(0, 0, w, w);
+    });
     this._lamp = null; this._tintC = null; this._tintKey = '';
     this._flakeC = null; this._flakeKey = '';
   }
@@ -217,7 +246,9 @@ class Engine {
       const n = Math.max(3, Math.round(ln.total / 210));
       for (let i = 0; i < n; i++) this.boats.push({ ln: li, d: ln.total * (i / n) + Math.random() * 60, sp: (2.6 + Math.random() * 3.4) * (Math.random() < 0.5 ? 1 : -1), kind: Math.random() < 0.45 ? 0 : 1, wob: Math.random() * 6.28 });
     });
-    this.smoke = g.CHIMNEYS.map(ch => ({ u: ch[0], v: ch[1], lamp: ch[2], ps: [] }));
+    // [u, v, 点灯, 冒烟]：第四项缺省为冒烟；山寺之类只点灯不冒烟
+    this.smoke = g.CHIMNEYS.map(ch => ({ u: ch[0], v: ch[1], lamp: ch[2], fume: ch[3] !== 0, ps: [] }));
+    this.clumps = []; this.dropT = 3; this.pineTops = null;
     this.flocks = []; this.birdTimer = 2;
     this.puffs = [];
     // 云气分三层：远雾贴山脊、中霭、近岚（大而淡、飘得快），各自的尺寸疏密不同
@@ -302,7 +333,10 @@ class Engine {
       c.putImageData(id, 0, 0);
       this.A_LAND = cv;
     });
-    this.loadMask('mask2.png', (d, w, h) => { this.m2Data = d; this.m2W = w; this.m2H = h; this.m2OK = true; });
+    this.loadMask('mask2.png', (d, w, h) => {
+      this.m2Data = d; this.m2W = w; this.m2H = h; this.m2OK = true;
+      if (this.geo.SNOWDROP) this.initPineTops();
+    });
   }
   waterAt(u, v) {
     if (!this.maskOK) return 0;
@@ -401,7 +435,7 @@ class Engine {
     const w = this.S.wet;
     if (this.S.mode === 0) return w < 0.3 ? '晴' : '阴';
     const sn = this.S.mode === 2;
-    if (w < 0.06) return '将雨';
+    if (w < 0.06) return sn ? '将雪' : '将雨';
     if (w < 0.30) return sn ? '疏雪' : '疏雨';
     if (w < 0.56) return sn ? '小雪' : '小雨';
     if (w < 0.78) return sn ? '大雪' : '大雨';
@@ -410,7 +444,9 @@ class Engine {
   applyGrade() {
     const sig = this.S.tod.toFixed(3) + '|' + this.S.mode + '|' + this.S.wet.toFixed(3) + '|' + this.stageH;
     if (sig === this.lastSig) return; this.lastSig = sig;
-    const G = this.G, ov = this.WX.overcast, pr = this.WX.precip, c = this.ctx;
+    // OVERCAST：阴天压暗的力度。雪景画本身就是灰天，再整幅压暗会发闷
+    const G = this.G, ov = this.WX.overcast * (this.geo.OVERCAST !== undefined ? this.geo.OVERCAST : 1),
+      pr = this.WX.precip, c = this.ctx;
     const mulT = lerpC(G.mulT, [84, 94, 110, 0.56], ov * 0.78), mulB = lerpC(G.mulB, [66, 76, 92, 0.50], ov * 0.78);
     const scrT = [G.scrT[0], G.scrT[1], G.scrT[2], G.scrT[3] * (1 - ov * 0.72)];
     const scrB = [G.scrB[0], G.scrB[1], G.scrB[2], G.scrB[3] * (1 - ov * 0.72)];
@@ -591,7 +627,7 @@ class Engine {
     for (const s of this.smoke) {
       const x0 = this.SX(s.u);
       if (x0 < -140 || x0 > this.stageW + 140) { s.ps.length = 0; continue; }
-      if (s.ps.length < 7 && Math.random() < dt * 5.4) s.ps.push({ t: 0, life: 3.4 + Math.random() * 2.8, sd: Math.random() * 6.28, w: 0.7 + Math.random() * 0.7 });
+      if (s.fume && s.ps.length < 7 && Math.random() < dt * 5.4) s.ps.push({ t: 0, life: 3.4 + Math.random() * 2.8, sd: Math.random() * 6.28, w: 0.7 + Math.random() * 0.7 });
       const y0 = this.SY(s.v);
       for (let i = s.ps.length - 1; i >= 0; i--) {
         const p = s.ps[i]; p.t += dt;
@@ -612,6 +648,7 @@ class Engine {
     c.globalAlpha = 1;
   }
   drawBirds(c, dt) {
+    if (this.geo.BIRDS === false) return;   // 画家自己画了雁群的画，不再添鸟
     const G = this.G, SN = this.SN;
     this.birdTimer -= dt;
     if (this.birdTimer <= 0 && this.flocks.length < 6 && G.birds > 0.3) {
@@ -678,9 +715,10 @@ class Engine {
       c.beginPath(); c.ellipse(x, y, rad, rad * 0.34, 0, 0, 6.2832); c.stroke();
     }
   }
-  spawnSplash(dt, pr) {
+  spawnSplash(dt, pr, soft) {
     if (!this.maskOK) return;
-    this.splashCarry += dt * pr * pr * 230;
+    // soft：雪落水面即化，只留一圈极小的涟漪，比雨点疏得多
+    this.splashCarry += dt * pr * pr * (soft ? 70 : 230);
     let tries = 0;
     while (this.splashCarry >= 1 && this.splashes.length < 300 && tries < 90) {
       this.splashCarry -= 1;
@@ -690,8 +728,9 @@ class Engine {
         const u = (this.S.x + sx) / this.DW * this.AU, v = (this.S.y - this.offY + sy) / this.DH * this.AV;
         if (u < 0 || u > this.AU || v < 0 || v > this.AV) continue;
         if (this.waterAt(u, v) > 0.75) {
-          this.splashes.push({ u, v, t: 0, life: 0.34 + Math.random() * 0.30,
-            s: (0.45 + (v / this.AV) * 1.25) * (0.8 + Math.random() * 0.5) });
+          this.splashes.push({ u, v, t: 0, soft: !!soft,
+            life: soft ? 0.9 + Math.random() * 0.6 : 0.34 + Math.random() * 0.30,
+            s: (0.45 + (v / this.AV) * 1.25) * (0.8 + Math.random() * 0.5) * (soft ? 0.7 : 1) });
           break;
         }
       }
@@ -705,6 +744,13 @@ class Engine {
       if (p.t > p.life) { this.splashes.splice(i, 1); continue; }
       const k = p.t / p.life, x = this.SX(p.u), y = this.SY(p.v);
       if (x < -14 || x > this.stageW + 14 || y < -14 || y > this.stageH + 14) continue;
+      if (p.soft) {
+        const rs = this.PX((0.25 + k * 1.5) * p.s);
+        c.strokeStyle = 'rgba(' + cr + ',' + ((1 - k) * (1 - k) * 0.6).toFixed(3) + ')';
+        c.lineWidth = Math.max(0.5, this.PX(0.14));
+        c.beginPath(); c.ellipse(x, y, rs, rs * 0.34, 0, 0, 6.2832); c.stroke();
+        continue;
+      }
       const rad = this.PX((0.35 + k * 2.5) * p.s);
       c.strokeStyle = 'rgba(' + cr + ',' + ((1 - k) * (1 - k) * 0.90).toFixed(3) + ')';
       c.lineWidth = Math.max(0.5, this.PX(0.20) * (1 - k * 0.55));
@@ -719,7 +765,8 @@ class Engine {
   drawLayerP(c, dt, L, pr, snowy) {
     const dens = Math.max(0.42, Math.min(1.08, (this.stageW * this.stageH) / 1595520));
     // 密度按雨量 1.5 次方走：微雨真稀、骤雨真密，滑杆的变化看得出来（声音同步跟随）
-    const cnt = Math.floor(L.n * Math.pow(pr, 1.5) * dens); if (cnt < 1) return;
+    // 雪比雨慢、同样粒数看着更稀，低档不再额外压（指数 1.0）
+    const cnt = Math.floor(L.n * Math.pow(pr, snowy ? 1.0 : 1.5) * dens); if (cnt < 1) return;
     const col = this.G.gcol, cr = (col[0] | 0) + ',' + (col[1] | 0) + ',' + (col[2] | 0);
     const spanX = this.stageW * 1.3, spanY = this.stageH * 1.25;
     const slant = this.windNow * (snowy ? 1.5 : 1.25) + this.WIND_DIR * (snowy ? 0.10 : 0.35);
@@ -728,18 +775,44 @@ class Engine {
       // 雪片用软径向渐变精灵，不是硬边正圆。
       // 颜色不能直接用波光色 gcol（白天偏黄绿，雪片会发绿）：以白为主，只沾一成时辰的光
       // 雪片要画实：半透明的白落在黄纸上看着发黄、落在青灰墨色上看着发蓝
-      const fl = this.tintedFlake([255 - (255 - col[0]) * 0.06, 255 - (255 - col[1]) * 0.06, 255 - (255 - col[2]) * 0.06]);
+      // 三层按电影镜头分工：远层细粒成纱；中层是对上焦的絮团——不规则、会翻转、
+      // 沿下落方向拖一点动态模糊（快门约 1/40 秒）；近层是失焦的大光斑，少而虚。
+      const layer = L === this.LAY[2] ? 2 : L === this.LAY[1] ? 1 : 0;
+      const fl = this.tintedFlake(this.snowColor());
       const aBase = 1.0 * L.dim * (0.55 + pr * 0.45);
+      const ge = this.gustEnv;   // 阵风时雪片被横着卷走、下落变缓，还带一点回旋
+      const t = this.S.t, dpr = this.dpr;
       for (let i = L.a; i < L.a + cnt; i++) {
         const d = this.drops[i];
-        d.y += dt * (0.040 + d.s * 0.050) * L.spd;
-        d.x += dt * (slant * 0.030 + Math.sin(this.S.t * 0.8 + d.r * 9) * 0.007) * L.spd;
+        const fy = (0.040 + d.s * 0.050) * L.spd * (1 - ge * 0.4) + ge * Math.sin(t * 2.1 + d.r * 17) * 0.03 * L.spd;
+        const fx = (slant * 0.030 + Math.sin(t * 0.8 + d.r * 9) * 0.007) * L.spd;
+        d.y += dt * fy; d.x += dt * fx;
         if (d.y > 1) d.y -= 1; if (d.x > 1) d.x -= 1; if (d.x < 0) d.x += 1;
         const x = fmod(d.x * spanX + ox, spanX) - spanX * 0.115, y = fmod(d.y * spanY + oy, spanY) - spanY * 0.10;
-        const rr = (0.85 + d.r * 2.0) * L.sz * (0.72 + pr * 0.55) * 1.35;
-        c.globalAlpha = Math.min(1, aBase * (0.85 + d.r * 0.15));
-        c.drawImage(fl, x - rr, y - rr, rr * 2, rr * 2);
+        let rr = (0.85 + d.r * 2.0) * L.sz * (0.72 + pr * 0.55) * 1.35;
+        if (layer === 0) {                       // 远：细粒
+          c.globalAlpha = Math.min(1, aBase * 1.4 * (0.85 + d.r * 0.15));
+          c.drawImage(fl, x - rr, y - rr, rr * 2, rr * 2);
+          continue;
+        }
+        if (layer === 2) {                       // 近：失焦光斑
+          rr *= 2.4;
+          c.globalAlpha = Math.min(1, aBase * (0.45 + d.r * 0.3));
+          c.drawImage(this.SP_BOKEH, x - rr, y - rr, rr * 2, rr * 2);
+          continue;
+        }
+        // 中：絮团。翻转 = 横向压扁 + 亮度微闪；拖影 = 沿速度方向拉长
+        const vx = fx * spanX, vy = fy * spanY, sp = Math.hypot(vx, vy);
+        const ph = t * (1.1 + d.s * 1.7) + d.r * 23;
+        const w = rr * 3.2 * (0.45 + 0.55 * Math.abs(Math.cos(ph)));
+        const h = rr * 3.2 + sp / 40;
+        const ang = Math.atan2(vx, vy);
+        c.globalAlpha = Math.min(1, aBase * 1.6 * (0.8 + 0.2 * Math.sin(ph * 1.7)));
+        const cs = Math.cos(ang) * dpr, sn = Math.sin(ang) * dpr;
+        c.setTransform(cs, -sn, sn, cs, x * dpr, y * dpr);
+        c.drawImage(this.SP_FLAKES[(d.r * 6) | 0], -w / 2, -h / 2, w, h);
       }
+      c.setTransform(dpr, 0, 0, dpr, 0, 0);
       c.globalAlpha = 1;
     } else {
       // 雨丝必须沿自身速度方向画。旧写法里横向速度按 spanX、纵向按 spanY 归一化，
@@ -785,7 +858,8 @@ class Engine {
       // 山体范围只擦七成：山前仍留一层薄雨幕（隔雨看山），
       // 全擦的话竖屏视野大半是山，远雨就"消失"了，整场雨都糊在近处
       fc.globalCompositeOperation = 'destination-out';
-      this.drawMaskLayer(fc, this.A_LAND, 0.7);
+      // FAR_ERASE：满幅都是山的画（雪景长卷），擦多了远景雪就没了
+      this.drawMaskLayer(fc, this.A_LAND, this.geo.FAR_ERASE !== undefined ? this.geo.FAR_ERASE : 0.7);
       fc.globalCompositeOperation = 'source-over';
     }
     c.drawImage(this.fxFar, 0, 0, w, h, 0, 0, this.stageW, this.stageH);
@@ -797,6 +871,7 @@ class Engine {
     this.drawLayerP(c, dt, this.LAY[1], pr, snowy);
     this.drawLayerP(c, dt, this.LAY[2], pr, snowy);
     if (!snowy) this.spawnSplash(dt, pr);
+    else if (this.geo.SNOW_MELT) this.spawnSplash(dt, pr, true);
   }
   updateFlash(dt) {
     if (this.flashSeq) {
@@ -981,6 +1056,77 @@ class Engine {
     c.globalAlpha = 1;
   }
 
+  /* ===== 松枝落雪（geo.SNOWDROP 配置才启用）=====
+     从树木掩膜里找出每片树冠的上沿作为落雪点：每隔几秒，屏内某处松枝
+     抖落一团积雪，碎成雪粒下坠、腾起一小片雪粉。点松树也会抖落。 */
+  initPineTops() {
+    const W = this.m2W, H = this.m2H, d = this.m2Data, pts = [];
+    for (let x = 0; x < W; x += 2) {
+      for (let y = 1; y < H; y++) {
+        const i = (y * W + x) * 4 + 1;
+        if (d[i] > 128 && d[i - W * 4] <= 128) pts.push([(x + 0.5) / W * this.AU, (y + 0.5) / H * this.AV]);
+      }
+    }
+    pts.sort((a, b) => a[0] - b[0]);
+    this.pineTops = pts;
+  }
+  snowColor() {
+    const col = this.G.gcol;   // 以白为主，只沾一点时辰的光（与雪片同色）
+    return [255 - (255 - col[0]) * 0.06, 255 - (255 - col[1]) * 0.06, 255 - (255 - col[2]) * 0.06];
+  }
+  spawnSnowDrop(u, v, big) {
+    if (this.clumps.length > 12) return;
+    // 尺寸按标注单位（1 单位≈手机上 2 像素）：雪粒要 2~4 像素才看得见
+    const n = big > 1 ? 34 : 20, spread = big > 1 ? 7 : 4.5, grains = [];
+    for (let i = 0; i < n; i++) grains.push({
+      du: (Math.random() - 0.5) * spread, dv: Math.random() * 1.8,
+      vu: (Math.random() - 0.5) * 2.2 + this.windNow * 0.9, vv: Math.random() * 2.5,
+      r: 0.75 + Math.random() * (big > 1 ? 1.1 : 0.8), l: 0.7 + Math.random() * 0.3 });
+    this.clumps.push({ u, v, t: 0, life: 2.4, g: grains, big });
+  }
+  drawSnowDrops(c, dt) {
+    const SD = this.geo.SNOWDROP;
+    if (SD && this.pineTops && this.pineTops.length) {
+      this.dropT -= dt;
+      if (this.dropT <= 0) {
+        this.dropT = SD.every[0] + Math.random() * (SD.every[1] - SD.every[0]);
+        // 只在屏内的树冠里挑（按 u 排过序，二分出可见区间）
+        const uL = this.S.x / this.DW * this.AU, uR = (this.S.x + this.stageW) / this.DW * this.AU;
+        const P = this.pineTops, lb = t => { let lo = 0, hi = P.length; while (lo < hi) { const m = (lo + hi) >> 1; if (P[m][0] < t) lo = m + 1; else hi = m; } return lo; };
+        const a = lb(uL + 3), b = lb(uR - 3);
+        for (let k = 0; k < 12 && b > a; k++) {
+          const p = P[a + ((Math.random() * (b - a)) | 0)], y = this.SY(p[1]);
+          if (y > 24 && y < this.stageH - 24) { this.spawnSnowDrop(p[0], p[1], 1); break; }
+        }
+      }
+    }
+    if (!this.clumps.length) return;
+    const fl = this.tintedFlake(this.snowColor());
+    for (let i = this.clumps.length - 1; i >= 0; i--) {
+      const cl = this.clumps[i]; cl.t += dt;
+      if (cl.t > cl.life) { this.clumps.splice(i, 1); continue; }
+      const x0 = this.SX(cl.u), y0 = this.SY(cl.v);
+      if (x0 < -80 || x0 > this.stageW + 80) continue;
+      const k = cl.t / cl.life;
+      // 雪粉：一团软白先鼓起再散淡
+      const pr = this.PX((cl.big > 1 ? 4 : 3) + k * (cl.big > 1 ? 12 : 8));
+      c.globalAlpha = Math.min(1, cl.t * 6) * (1 - k) * (1 - k) * (cl.big > 1 ? 0.75 : 0.6);
+      c.drawImage(fl, x0 - pr, y0 + this.PX(4 + k * 10) - pr * 0.7, pr * 2, pr * 1.4);
+      // 雪粒：受重力下坠、被风带偏
+      for (let gi = 0; gi < cl.g.length; gi++) {
+        const g = cl.g[gi];
+        g.vv += 24 * dt; g.vu *= Math.pow(0.6, dt);
+        g.du += g.vu * dt; g.dv += g.vv * dt;
+        const kk = cl.t / (cl.life * g.l); if (kk >= 1) continue;
+        const r = this.PX(g.r) * (1 - kk * 0.3);
+        c.globalAlpha = (1 - kk) * 0.95;
+        // 雪粒用带暗边的絮团：落在浅色纸上也读得出
+        c.drawImage(this.SP_FLAKES[gi % 6], x0 + this.PX(g.du) - r * 1.2, y0 + this.PX(g.dv) - r * 1.2, r * 2.4, r * 2.4);
+      }
+    }
+    c.globalAlpha = 1;
+  }
+
   /* ===== 落花瓣（geo.PETALS 配置才启用）=====
      spawn:[u0,v0,w,h] 生瓣区（树冠带），rate 每秒颗数，col 花瓣色；
      落到 GROUND 折线下方即着地淡出，落进水面起一圈涟漪。 */
@@ -1135,6 +1281,16 @@ class Engine {
     S.t += dt;
     this.windNow = this.WIND_DIR * (0.34 + Math.sin(S.t * 0.12) * 0.2 + Math.sin(S.t * 0.047 + 1.7) * 0.16);
     this.windNow *= 1 + this.WX.precip * 0.9;
+    // 阵风：下雪时每隔十来秒一阵，几秒内起落（正弦包络），炊烟、雪片、落雪都跟着偏
+    if (this.geo.GUSTS) {
+      const gs = this.gust;
+      if (gs.dur > 0) { gs.t += dt; if (gs.t >= gs.dur) { gs.dur = 0; gs.next = 7 + Math.random() * 12; } }
+      else if ((gs.next -= dt) <= 0 && this.WX.precip > 0.08) {
+        gs.t = 0; gs.dur = 2.6 + Math.random() * 2.4; gs.amp = this.WIND_DIR * (1.4 + Math.random() * 1.4);
+      }
+      this.gustEnv = gs.dur > 0 ? Math.pow(Math.sin(Math.PI * gs.t / gs.dur), 2) : 0;
+      this.windNow += this.gustEnv * gs.amp;
+    }
 
     this.SN = this.seasonNow(); this.WX = this.weather();
     // 积雪：下雪时渐积（约半分钟成型），雪停缓融
@@ -1187,6 +1343,7 @@ class Engine {
     this.drawSmoke(c, dt);
     this.drawWalkers(c, dt);
     this.drawSnowCover(c);
+    this.drawSnowDrops(c, dt);
     this.drawBirds(c, dt);
     this.drawMist(c, dt);
     this.drawPetals(c, dt);
@@ -1254,6 +1411,8 @@ class Engine {
         if (this.waterAt(u, v) > 0.5) {
           this.addRing(u, v, 1);
           for (let k = 0; k < 2; k++) this.addRing(u + (Math.random() - 0.5) * 7, v + (Math.random() - 0.5) * 2.2, 0.7);
+        } else if (this.vegAt(u, v) > 0.30 && this.geo.TAP_VEG === 'snowdrop') {
+          this.spawnSnowDrop(u, v - 1, 2);   // 点松树：抖落一大团积雪
         } else if (this.vegAt(u, v) > 0.30) {
           this.startle(u, v);
           if (this.geo.PETALS) for (let k = 0; k < 9; k++)

@@ -8,5 +8,8 @@
 - **静听松风图**（南宋 马麟，台北故宫博物院藏）：
   國立故宮博物院 Open Data 600 万像素图档，CC BY 4.0
   （https://digitalarchive.npm.gov.tw/opendata/）
+- **关山积雪图**（明 文徵明，台北故宫博物院藏 故畫001040）：
+  书格（shuge.org）发布之 65500×2590 扫描，源自國立故宮博物院图档（CC BY 4.0），
+  署名：國立故宮博物院
 
 环境音授权见 audio/LICENSES.md（freesound CC0）。

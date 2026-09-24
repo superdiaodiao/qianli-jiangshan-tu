@@ -84,4 +84,20 @@ module.exports = [
       geo: 'yule-geo',
     },
   },
+  {
+    id: 'guanshan',
+    title: '关山积雪图',
+    artist: '文徵明',
+    era: '明',
+    status: 'ready',
+    tags: ['雪景', '长卷', '吴门'],
+    line: '五年画成的一卷雪 —— 松枝落雪，暮夜闻钟',
+    meta: '纸本设色\n纵二五·三厘米\n横四四五·二厘米\n明嘉靖十一年\n今藏台北故宫博物院',
+    thumb: ASSET_BASE + 'guanshan/mini.jpg',
+    cover: ASSET_BASE + 'guanshan/cover.jpg',
+    engine: {
+      assetBase: ASSET_BASE + 'guanshan/',
+      geo: 'guanshan-geo',
+    },
+  },
 ];

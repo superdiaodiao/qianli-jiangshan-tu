@@ -4,8 +4,26 @@
     {
       "name": "engine-harness",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8123", "--directory", "miniprogram"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8123",
+        "--directory",
+        "miniprogram"
+      ],
       "port": 8123
+    },
+    {
+      "name": "repo-root",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8124",
+        "--directory",
+        "."
+      ],
+      "port": 8124
     }
   ]
 }

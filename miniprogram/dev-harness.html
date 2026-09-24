@@ -22,6 +22,7 @@ async function loadModule(path, registry) {
   reg['xiaoxia-geo.js'] = await loadModule('data/xiaoxia-geo.js', reg);
   reg['songfeng-geo.js'] = await loadModule('data/songfeng-geo.js', reg);
   reg['yule-geo.js'] = await loadModule('data/yule-geo.js', reg);
+  reg['guanshan-geo.js'] = await loadModule('data/guanshan-geo.js', reg);
   const { Engine } = await loadModule('core/engine.js', reg);
 
   const cv = document.getElementById('cv');

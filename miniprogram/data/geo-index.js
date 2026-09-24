@@ -5,4 +5,5 @@ module.exports = {
   'xiaoxia-geo': require('./xiaoxia-geo.js'),
   'songfeng-geo': require('./songfeng-geo.js'),
   'yule-geo': require('./yule-geo.js'),
+  'guanshan-geo': require('./guanshan-geo.js'),
 };

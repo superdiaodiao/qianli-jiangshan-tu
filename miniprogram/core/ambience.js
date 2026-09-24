@@ -75,9 +75,15 @@ class Voice {
 class Ambience {
   static isSupported() { return typeof wx.createInnerAudioContext === 'function'; }
 
-  constructor(base) {
+  constructor(base, opts) {
     this.ok = false;
     this.playing = false;
+    this.bell = null; this.bellT = 8;
+    if (opts && opts.bell) {
+      // 寺钟：暮夜时分每隔一两分钟远远一声，单次播放不循环
+      try { this.bell = wx.createInnerAudioContext(); this.bell.src = base + 'bell.m4a'; this.bell.loop = false; this.bell.volume = 0.6; }
+      catch (e) { this.bell = null; }
+    }
     try {
       // 静音键下也出声（用户主动点了聆音），并允许与他人音乐混播
       if (wx.setInnerAudioOption) wx.setInnerAudioOption({ obeyMuteSwitch: false, mixWithOther: true });
@@ -101,12 +107,17 @@ class Ambience {
     if (!this.ok) return;
     this.playing = false;
     this.all.forEach(vc => vc.stop());
+    if (this.bell) { try { this.bell.stop(); } catch (e) {} this.bellT = 8; }
   }
 
   /* 每 ~0.3s 由页面喂一次当前天候 */
-  update(wx_, snowy, windNow) {
+  update(wx_, snowy, windNow, lamp) {
     if (!this.ok || !this.playing) return;
     this.t += TICK;
+    if (this.bell && lamp > 0.35 && (this.bellT -= TICK) <= 0) {
+      this.bellT = 50 + Math.random() * 60;
+      try { this.bell.seek(0); this.bell.play(); } catch (e) {}
+    }
     const pr = wx_.precip;
     // 「盛」(pr≈.66) 时用户嫌小：大雨层提前从 .35 开始进，疏雨层不再压那么多
     const heavyMix = smooth01(pr, 0.35, 1);
@@ -128,6 +139,7 @@ class Ambience {
     if (!this.ok) return;
     this.stop();
     this.all.forEach(vc => vc.destroy());
+    if (this.bell) { try { this.bell.destroy(); } catch (e) {} this.bell = null; }
     this.ok = false;
   }
 }
