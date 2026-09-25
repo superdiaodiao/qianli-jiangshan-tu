@@ -74,7 +74,7 @@ module.exports = { AU, AV, NT, ART_W, ART_H, HORIZON, LANES, BASE, CHIMNEYS, WAL
   FAR_ERASE: 0.3,                        // 满幅是山，远景雪只轻轻藏到山后
   BIRDS: false,
   SNOWDROP: { every: [1.2, 3] },         // 松枝落雪：每 1.2~3 秒一处（真机上嫌看不到）
-  SMOKE: { col: [104, 102, 100], a: 0.65, scale: 1.6, rise: 1.7, decay: 1.3 },   // 灰青炊烟，浅纸上读得出
+  SMOKE: { col: [104, 102, 100], a: 0.65, scale: 1.6, rise: 1.7, decay: 1.3 },   // 暖灰炊烟（白烟在浅纸上隐形）
   LAMP_SCALE: 1.6, LAMP_A: 1.4,
   TAP_VEG: 'snowdrop',                   // 点松树抖落积雪（不惊鸟）
   SNOW_MELT: true,                       // 雪落水面化成小涟漪
