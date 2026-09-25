@@ -616,26 +616,44 @@ class Engine {
       }
     }
   }
+  smokeSprite(col) {
+    const key = col.join(',');
+    if (this._smokeKey === key) return this._smokeC;
+    this._smokeKey = key;
+    const SP = this.SP_PUFF;
+    this._smokeC = sprite(128, 128, (c, w) => {
+      c.drawImage(SP, 0, 0); c.globalCompositeOperation = 'source-in';
+      c.fillStyle = 'rgb(' + key + ')'; c.fillRect(0, 0, w, w);
+    });
+    return this._smokeC;
+  }
   drawSmoke(c, dt) {
     const amt = this.G.smoke, G = this.G;
+    // geo.SMOKE：浅色纸本上白烟看不见（实测最大色差 15），雪景里的炊烟本就是灰青色，
+    // 用有色烟、更大更高
+    const SM = this.geo.SMOKE, spr = SM ? this.smokeSprite(SM.col) : this.SP_PUFF;
+    const sc = SM ? SM.scale : 1, rise = SM ? SM.rise : 1, sa = SM ? SM.a : 0.44;
     for (const s of this.smoke) {
       const x0 = this.SX(s.u);
       if (x0 < -140 || x0 > this.stageW + 140) { s.ps.length = 0; continue; }
-      if (s.fume && s.ps.length < 7 && Math.random() < dt * 5.4) s.ps.push({ t: 0, life: 3.4 + Math.random() * 2.8, sd: Math.random() * 6.28, w: 0.7 + Math.random() * 0.7 });
+      // 有色烟（SM）要连成一缕：粒子更多、更密，否则读成一串小点
+      if (s.fume && s.ps.length < (SM ? 18 : 7) && Math.random() < dt * (SM ? 7 : 5.4)) s.ps.push({ t: 0, life: 3.4 + Math.random() * 2.8, sd: Math.random() * 6.28, w: 0.7 + Math.random() * 0.7 });
       const y0 = this.SY(s.v);
       for (let i = s.ps.length - 1; i >= 0; i--) {
         const p = s.ps[i]; p.t += dt;
         if (p.t > p.life) { s.ps.splice(i, 1); continue; }
         const k = p.t / p.life;
-        const x = x0 + this.PX(9) * this.windNow * p.t * p.w + Math.sin(p.t * 1.25 + p.sd) * this.PX(1.3);
-        const y = y0 - this.PX(30) * k * p.w;
-        const r = this.PX(1.1 + k * 3.4) * p.w;
-        c.globalAlpha = Math.min(1, p.t * 3.2) * (1 - k) * (1 - k) * 0.44 * amt;
-        c.drawImage(this.SP_PUFF, x - r, y - r, r * 2, r * 2);
+        // 风对炊烟封顶：阵风时风力到 3 上下，烟会被横着撕成一条细线、飘出屏外
+        const wn = Math.max(-1.1, Math.min(1.1, this.windNow));
+        const x = x0 + this.PX(9) * wn * p.t * p.w + Math.sin(p.t * 1.25 + p.sd) * this.PX(1.3);
+        const y = y0 - this.PX(30 * rise) * k * p.w;
+        const r = this.PX(SM ? (1.4 + k * 6) * sc : 1.1 + k * 3.4) * p.w;
+        c.globalAlpha = Math.min(1, p.t * 3.2) * Math.pow(1 - k, SM && SM.decay ? SM.decay : 2) * sa * amt;
+        c.drawImage(spr, x - r, y - r, r * 2, r * 2);
       }
       if (G.lamp > 0.02 && s.lamp) {
-        c.globalCompositeOperation = 'lighter'; c.globalAlpha = G.lamp * 0.55;
-        const r = this.PX(3.4); c.drawImage(this.lampSprite(), x0 - r, y0 - r * 0.6, r * 2, r * 2);
+        c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, G.lamp * 0.55 * (this.geo.LAMP_A || 1));
+        const r = this.PX(3.4 * (this.geo.LAMP_SCALE || 1)); c.drawImage(this.lampSprite(), x0 - r, y0 - r * 0.6, r * 2, r * 2);
         c.globalCompositeOperation = 'source-over';
       }
     }
@@ -1067,13 +1085,16 @@ class Engine {
   }
   spawnSnowDrop(u, v, big) {
     if (this.clumps.length > 12) return;
-    // 尺寸按标注单位（1 单位≈手机上 2 像素）：雪粒要 2~4 像素才看得见
-    const n = big > 1 ? 34 : 20, spread = big > 1 ? 7 : 4.5, grains = [];
+    // 一团积雪先整块从枝头滑落（前 0.3 秒是一坨），随后散成一股雪粒往下泻，
+    // 雪粒错开 0~0.6 秒陆续脱落，读起来是"一股"而不是"几点"。
+    // 尺寸按标注单位（1 单位≈手机上 2 像素）
+    const n = big > 1 ? 52 : 34, spread = big > 1 ? 6 : 4, grains = [];
     for (let i = 0; i < n; i++) grains.push({
-      du: (Math.random() - 0.5) * spread, dv: Math.random() * 1.8,
-      vu: (Math.random() - 0.5) * 2.2 + this.windNow * 0.9, vv: Math.random() * 2.5,
-      r: 0.75 + Math.random() * (big > 1 ? 1.1 : 0.8), l: 0.7 + Math.random() * 0.3 });
-    this.clumps.push({ u, v, t: 0, life: 2.4, g: grains, big });
+      du: (Math.random() - 0.5) * spread * 0.4, dv: Math.random() * 1.2,
+      vu: (Math.random() - 0.5) * spread * 0.9 + this.windNow * 0.9, vv: 2 + Math.random() * 3,
+      delay: Math.random() * 0.6,
+      r: 1.0 + Math.random() * (big > 1 ? 1.5 : 1.1), l: 0.75 + Math.random() * 0.25 });
+    this.clumps.push({ u, v, t: 0, life: 2.8, g: grains, big });
   }
   drawSnowDrops(c, dt) {
     const SD = this.geo.SNOWDROP;
@@ -1099,16 +1120,24 @@ class Engine {
       const x0 = this.SX(cl.u), y0 = this.SY(cl.v);
       if (x0 < -80 || x0 > this.stageW + 80) continue;
       const k = cl.t / cl.life;
-      // 雪粉：一团软白先鼓起再散淡
-      const pr = this.PX((cl.big > 1 ? 4 : 3) + k * (cl.big > 1 ? 12 : 8));
-      c.globalAlpha = Math.min(1, cl.t * 6) * (1 - k) * (1 - k) * (cl.big > 1 ? 0.75 : 0.6);
-      c.drawImage(fl, x0 - pr, y0 + this.PX(4 + k * 10) - pr * 0.7, pr * 2, pr * 1.4);
-      // 雪粒：受重力下坠、被风带偏
+      const big = cl.big > 1;
+      // 整块：前 0.35 秒一坨雪从枝头滑下
+      if (cl.t < 0.35) {
+        const q = cl.t / 0.35, r = this.PX(big ? 3.4 : 2.6) * (1 - q * 0.3);
+        c.globalAlpha = 1 - q * 0.4;
+        c.drawImage(this.SP_FLAKES[0], x0 - r, y0 + this.PX(q * q * 3) - r, r * 2, r * 2);
+      }
+      // 雪粉：一团软白先鼓起再散淡，跟着雪股往下
+      const pr = this.PX((big ? 5 : 4) + k * (big ? 16 : 12));
+      c.globalAlpha = Math.min(1, Math.max(0, cl.t - 0.2) * 5) * (1 - k) * (1 - k) * (big ? 0.85 : 0.7);
+      c.drawImage(fl, x0 - pr, y0 + this.PX(6 + k * 18) - pr * 0.8, pr * 2, pr * 1.6);
+      // 雪粒：错开脱落，受重力下坠、被风带偏
       for (let gi = 0; gi < cl.g.length; gi++) {
         const g = cl.g[gi];
-        g.vv += 24 * dt; g.vu *= Math.pow(0.6, dt);
+        const tt = cl.t - g.delay; if (tt <= 0) continue;
+        g.vv += 26 * dt; g.vu *= Math.pow(0.6, dt);
         g.du += g.vu * dt; g.dv += g.vv * dt;
-        const kk = cl.t / (cl.life * g.l); if (kk >= 1) continue;
+        const kk = tt / (cl.life * g.l); if (kk >= 1) continue;
         const r = this.PX(g.r) * (1 - kk * 0.3);
         c.globalAlpha = (1 - kk) * 0.95;
         // 雪粒用带暗边的絮团：落在浅色纸上也读得出

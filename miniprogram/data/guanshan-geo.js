@@ -38,11 +38,11 @@ const TOD = [
   { at: 0, name: '晓', mulT: [92, 110, 138, 0.46], mulB: [140, 148, 156, 0.24], scrT: [170, 190, 214, 0.12], scrB: [220, 210, 190, 0.05],
     sat: 0.7, bri: 0.82, mist: 0.9, glint: 0.34, gcol: [206, 220, 236], smoke: 1, lamp: 0.25, ink: [30, 36, 46], sail: [210, 208, 196], birds: 0 },
   { at: 0.30, name: '午', mulT: [255, 252, 246, 0.04], mulB: [255, 252, 244, 0.02], scrT: [255, 252, 240, 0.05], scrB: [255, 250, 236, 0.02],
-    sat: 1.02, bri: 1.03, mist: 0.2, glint: 0.8, gcol: [255, 252, 240], smoke: 0.6, lamp: 0, ink: [34, 32, 28], sail: [236, 230, 214], birds: 0 },
+    sat: 1.02, bri: 1.03, mist: 0.2, glint: 0.8, gcol: [255, 252, 240], smoke: 0.9, lamp: 0, ink: [34, 32, 28], sail: [236, 230, 214], birds: 0 },
   { at: 0.60, name: '暮', mulT: [200, 140, 104, 0.34], mulB: [140, 104, 96, 0.26], scrT: [255, 196, 140, 0.16], scrB: [250, 170, 120, 0.06],
     sat: 0.92, bri: 0.9, mist: 0.45, glint: 0.6, gcol: [255, 222, 186], smoke: 0.9, lamp: 0.6, ink: [44, 32, 28], sail: [244, 214, 176], birds: 0 },
   { at: 0.84, name: '夜', mulT: [56, 74, 116, 0.58], mulB: [42, 56, 92, 0.46], scrT: [150, 176, 226, 0.16], scrB: [110, 136, 190, 0.08],
-    sat: 0.5, bri: 0.7, mist: 0.55, glint: 0.4, gcol: [200, 216, 242], smoke: 0.35, lamp: 1, ink: [16, 20, 30], sail: [160, 174, 198], birds: 0 },
+    sat: 0.5, bri: 0.7, mist: 0.55, glint: 0.4, gcol: [200, 216, 242], smoke: 0.55, lamp: 1, ink: [16, 20, 30], sail: [160, 174, 198], birds: 0 },
   { at: 1, name: '晓', mulT: [92, 110, 138, 0.46], mulB: [140, 148, 156, 0.24], scrT: [170, 190, 214, 0.12], scrB: [220, 210, 190, 0.05],
     sat: 0.7, bri: 0.82, mist: 0.9, glint: 0.34, gcol: [206, 220, 236], smoke: 1, lamp: 0.25, ink: [30, 36, 46], sail: [210, 208, 196], birds: 0 },
 ];
@@ -73,7 +73,9 @@ module.exports = { AU, AV, NT, ART_W, ART_H, HORIZON, LANES, BASE, CHIMNEYS, WAL
   DEFAULT_WX: { mode: 2, wet: 0.62 },    // 一打开就在下雪（浅色画上小雪档看不出）
   FAR_ERASE: 0.3,                        // 满幅是山，远景雪只轻轻藏到山后
   BIRDS: false,
-  SNOWDROP: { every: [2.5, 6] },         // 松枝落雪：每 2.5~6 秒一处
+  SNOWDROP: { every: [1.2, 3] },         // 松枝落雪：每 1.2~3 秒一处（真机上嫌看不到）
+  SMOKE: { col: [104, 102, 100], a: 0.65, scale: 1.6, rise: 1.7, decay: 1.3 },   // 灰青炊烟，浅纸上读得出
+  LAMP_SCALE: 1.6, LAMP_A: 1.4,
   TAP_VEG: 'snowdrop',                   // 点松树抖落积雪（不惊鸟）
   SNOW_MELT: true,                       // 雪落水面化成小涟漪
   GUSTS: true,                           // 阵风卷雪
