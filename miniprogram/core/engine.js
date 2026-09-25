@@ -243,6 +243,9 @@ class Engine {
     // [u, v, 点灯, 冒烟]：第四项缺省为冒烟；山寺之类只点灯不冒烟
     this.smoke = g.CHIMNEYS.map(ch => ({ u: ch[0], v: ch[1], lamp: ch[2], fume: ch[3] !== 0, ps: [] }));
     this.clumps = []; this.dropT = 3; this.pineTops = null;
+    this.drift = []; this.driftCarry = 0; this.ridgePts = null; this.ridgePeaks = null;
+    if (g.SPINDRIFT && g.RIDGE) this.initRidge();
+    this.sparks = []; this.sparkCarry = 0; this.sparkPts = null;
     this.flocks = []; this.birdTimer = 2;
     this.puffs = [];
     // 云气分三层：远雾贴山脊、中霭、近岚（大而淡、飘得快），各自的尺寸疏密不同
@@ -326,6 +329,7 @@ class Engine {
       for (let i = 0, n = w * h; i < n; i++) { const o = i * 4; dd[o] = 255; dd[o + 1] = 255; dd[o + 2] = 255; dd[o + 3] = d[o + 1]; }
       c.putImageData(id, 0, 0);
       this.A_LAND = cv;
+      if (this.geo.SPINDRIFT && !this.geo.RIDGE) this.initRidge();
     });
     this.loadMask('mask2.png', (d, w, h) => {
       this.m2Data = d; this.m2W = w; this.m2H = h; this.m2OK = true;
@@ -1147,6 +1151,142 @@ class Engine {
     c.globalAlpha = 1;
   }
 
+  /* ===== 峰顶吹雪（geo.SPINDRIFT 配置才启用）=====
+     阵风时，雪峰山脊上卷起一缕缕雪烟顺风飘散。山脊取自山陆掩膜每列的上沿，
+     峰尖（局部最高点）更容易起烟。雪烟飘进灰色天空，白色才读得出来。 */
+  initRidge() {
+    // 优先用 geo.RIDGE（按底图亮度检出的雪峰天际线）；没有才退回山陆掩膜上沿
+    const R = this.geo.RIDGE, pts = [];
+    if (R) {
+      R.v.forEach((v, i) => { if (v >= 0) pts.push([(i + 0.5) * R.step, v]); });
+    } else if (this.maskOK) {
+      const W = this.maskW, H = this.maskH, d = this.maskData;
+      for (let x = 0; x < W; x += 2) {
+        let y = 0; while (y < H && d[(y * W + x) * 4 + 1] <= 128) y++;
+        if (y > 2 && y < H * 0.6) pts.push([(x + 0.5) / W * this.AU, (y + 0.5) / H * this.AV]);
+      }
+    }
+    // 峰尖：比左右各 3 个点都高（v 更小）
+    const peaks = [];
+    for (let i = 3; i < pts.length - 3; i++) {
+      let top = true;
+      for (let k = -3; k <= 3 && top; k++) if (k && pts[i + k][1] < pts[i][1]) top = false;
+      if (top) peaks.push(pts[i]);
+    }
+    this.ridgePts = pts; this.ridgePeaks = peaks;
+  }
+  drawSpindrift(c, dt) {
+    if (!this.geo.SPINDRIFT || !this.ridgePeaks) return;
+    const ge = this.gustEnv, dir = this.WIND_DIR;
+    if (ge > 0.12) {
+      this.driftCarry += dt * ge * 6;   // 每次一簇 3 团，连成一缕
+      const uL = this.S.x / this.DW * this.AU, uR = (this.S.x + this.stageW) / this.DW * this.AU;
+      while (this.driftCarry >= 1 && this.drift.length < 120) {
+        this.driftCarry -= 1;
+        // 七成从峰尖起，三成从随机一段山脊起
+        let u, v;
+        if (Math.random() < 0.7) {
+          const P = this.ridgePeaks, vis = [];
+          for (let i = 0; i < P.length; i++) if (P[i][0] > uL - 20 && P[i][0] < uR) vis.push(P[i]);
+          if (!vis.length) continue;
+          const p = vis[(Math.random() * vis.length) | 0]; u = p[0]; v = p[1];
+        } else {
+          const P = this.ridgePts, vis = [];
+          for (let i = 0; i < P.length; i += 2) if (P[i][0] > uL && P[i][0] < uR) vis.push(P[i]);
+          if (!vis.length) continue;
+          const p = vis[(Math.random() * vis.length) | 0]; u = p[0]; v = p[1];
+        }
+        const y = this.SY(v); if (y < 4 || y > this.stageH * 0.8) continue;
+        for (let j = 0; j < 3; j++) this.drift.push({ u: u - dir * j * 1.5, v: v + 0.6 + j * 0.4, t: -j * 0.18, life: 2.6 + Math.random() * 2,
+          vu: dir * (8 + Math.random() * 9) * (0.6 + ge), vv: -(0.5 + Math.random() * 1.8),
+          s: 0.9 + Math.random() * 0.9, a: 0.5 + Math.random() * 0.3 });
+      }
+    }
+    if (!this.drift.length) return;
+    const fl = this.tintedFlake(this.snowColor());
+    for (let i = this.drift.length - 1; i >= 0; i--) {
+      const p = this.drift[i]; p.t += dt;
+      if (p.t > p.life) { this.drift.splice(i, 1); continue; }
+      if (p.t < 0) continue;
+      p.u += p.vu * dt; p.v += p.vv * dt; p.vv += 0.35 * dt;
+      const x = this.SX(p.u), y = this.SY(p.v);
+      if (x < -60 || x > this.stageW + 60) continue;
+      const k = p.t / p.life;
+      const w = this.PX((4 + k * 22) * p.s), h = this.PX((2 + k * 7) * p.s);
+      c.globalAlpha = Math.sin(Math.PI * Math.min(1, k * 1.15)) * p.a;
+      c.drawImage(fl, x - w * 0.3, y - h / 2, w, h);   // 顺风拉长，重心偏向来风一侧
+      // 夹带的细雪粒
+      if (k < 0.75) {
+        const g = this.PX(0.8);
+        c.globalAlpha = Math.min(1, c.globalAlpha * 1.2);
+        for (let j = 0; j < 3; j++)
+          c.drawImage(this.SP_FLAKES[(i + j) % 6], x + w * (0.1 + j * 0.2) - g, y + h * 0.3 * Math.sin(p.t * 3 + i + j * 2) - g, g * 2, g * 2);
+      }
+    }
+    c.globalAlpha = 1;
+  }
+
+  /* ===== 雪霁闪光（geo.SPARKLE 配置才启用）=====
+     天候切到晴，积雪面上零星闪起细碎的星芒，一闪即灭。候选点 = 山陆 ∩ 非树 ∩ 底图亮处
+     （积雪是画里最亮的地方）；夜里只剩极少几点，像月光。 */
+  initSparkPts() {
+    const W = this.maskW, H = this.maskH;
+    const cv = offCanvas(W, H), cx = cv.getContext('2d');
+    cx.drawImage(this.baseIm, 0, 0, W, H);
+    const b = cx.getImageData(0, 0, W, H).data, m = this.maskData, pts = [];
+    const lumAt = i => (b[i] + b[i + 1] + b[i + 2]) / 3;
+    for (let x = 0; x < W; x += 1) {
+      for (let y = 0; y < H; y += 1) {
+        const i = (y * W + x) * 4;
+        if (m[i + 1] < 160 || m[i] > 60) continue;                          // 山陆、非水
+        if (this.vegAt((x + 0.5) / W * this.AU, (y + 0.5) / H * this.AV) > 0.2) continue;   // 非树
+        if (lumAt(i) < (this.geo.SPARKLE.lum || 178)) continue;               // 亮处 = 积雪
+        pts.push([(x + Math.random()) / W * this.AU, (y + Math.random()) / H * this.AV]);
+      }
+    }
+    this.sparkPts = pts;   // x 外层循环，天然按 u 升序
+  }
+  drawSparkles(c, dt) {
+    const SPK = this.geo.SPARKLE;
+    if (!SPK || !this.maskOK || !this.m2OK || !this.baseOK) return;
+    if (!this.sparkPts) { this.initSparkPts(); return; }
+    // 只在晴天闪：阴天下雪没有直射光；白天多、夜里（月光）只剩一成
+    const sun = this.S.mode === 0 ? Math.max(0.1, 1 - this.G.lamp) * (1 - this.WX.overcast) : 0;
+    if (sun > 0.02 && this.sparkPts.length) {
+      this.sparkCarry += dt * sun * (SPK.rate || 22);
+      const P = this.sparkPts;
+      const uL = this.S.x / this.DW * this.AU, uR = (this.S.x + this.stageW) / this.DW * this.AU;
+      const lb = t => { let lo = 0, hi = P.length; while (lo < hi) { const md = (lo + hi) >> 1; if (P[md][0] < t) lo = md + 1; else hi = md; } return lo; };
+      const a = lb(uL), bb = lb(uR);
+      while (this.sparkCarry >= 1 && this.sparks.length < 60) {
+        this.sparkCarry -= 1;
+        if (bb <= a) break;
+        const p = P[a + ((Math.random() * (bb - a)) | 0)];
+        const y = this.SY(p[1]); if (y < 0 || y > this.stageH) continue;
+        this.sparks.push({ u: p[0], v: p[1], t: 0, life: 0.25 + Math.random() * 0.45, s: 0.6 + Math.random() * 0.9, rot: Math.random() * 0.6 });
+      }
+    }
+    if (!this.sparks.length) return;
+    c.globalCompositeOperation = 'lighter';
+    c.lineCap = 'round';
+    for (let i = this.sparks.length - 1; i >= 0; i--) {
+      const p = this.sparks[i]; p.t += dt;
+      if (p.t > p.life) { this.sparks.splice(i, 1); continue; }
+      const x = this.SX(p.u), y = this.SY(p.v), k = p.t / p.life;
+      const q = Math.sin(Math.PI * k), L = this.PX(1.6 * p.s) * (0.4 + q * 0.6);
+      c.globalAlpha = q * 0.95;
+      c.strokeStyle = 'rgba(255,255,248,1)'; c.lineWidth = Math.max(0.6, this.PX(0.16));
+      const ca = Math.cos(p.rot), sa = Math.sin(p.rot);
+      c.beginPath();
+      c.moveTo(x - L * ca, y - L * sa); c.lineTo(x + L * ca, y + L * sa);
+      c.moveTo(x + L * sa * 0.8, y - L * ca * 0.8); c.lineTo(x - L * sa * 0.8, y + L * ca * 0.8);
+      c.stroke();
+      const r = this.PX(0.45 * p.s) * q;
+      c.drawImage(this.SP_PUFF, x - r * 2, y - r * 2, r * 4, r * 4);
+    }
+    c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+  }
+
   /* ===== 落花瓣（geo.PETALS 配置才启用）=====
      spawn:[u0,v0,w,h] 生瓣区（树冠带），rate 每秒颗数，col 花瓣色；
      落到 GROUND 折线下方即着地淡出，落进水面起一圈涟漪。 */
@@ -1304,8 +1444,9 @@ class Engine {
     // 阵风：下雪时每隔十来秒一阵，几秒内起落（正弦包络），炊烟、雪片、落雪都跟着偏
     if (this.geo.GUSTS) {
       const gs = this.gust;
-      if (gs.dur > 0) { gs.t += dt; if (gs.t >= gs.dur) { gs.dur = 0; gs.next = 7 + Math.random() * 12; } }
-      else if ((gs.next -= dt) <= 0 && this.WX.precip > 0.08) {
+      const snowing = this.WX.precip > 0.08;
+      if (gs.dur > 0) { gs.t += dt; if (gs.t >= gs.dur) { gs.dur = 0; gs.next = (snowing ? 6 : 9) + Math.random() * (snowing ? 10 : 12); } }
+      else if ((gs.next -= dt) <= 0 && (snowing || this.geo.SPINDRIFT)) {
         gs.t = 0; gs.dur = 2.6 + Math.random() * 2.4; gs.amp = this.WIND_DIR * (1.4 + Math.random() * 1.4);
       }
       this.gustEnv = gs.dur > 0 ? Math.pow(Math.sin(Math.PI * gs.t / gs.dur), 2) : 0;
@@ -1364,6 +1505,8 @@ class Engine {
     this.drawWalkers(c, dt);
     this.drawSnowCover(c);
     this.drawSnowDrops(c, dt);
+    this.drawSparkles(c, dt);
+    this.drawSpindrift(c, dt);
     this.drawBirds(c, dt);
     this.drawMist(c, dt);
     this.drawPetals(c, dt);
