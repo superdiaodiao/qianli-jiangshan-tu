@@ -246,6 +246,7 @@ class Engine {
     this.drift = []; this.driftCarry = 0; this.ridgePts = null; this.ridgePeaks = null;
     this.pineSides = null; this.groundPts = null;
     this.ducks = null;
+    this.egrets = null; this.egretSpots = null;
     this.crows = []; this.crowT = 3; this.bareTops = null;
     if (g.BARE) { const B = g.BARE, P = []; for (let i = 0; i < B.length; i += 2) P.push([B[i], B[i + 1]]); this.bareTops = P; }
     if (g.SPINDRIFT && g.RIDGE) this.initRidge();
@@ -1375,6 +1376,127 @@ class Engine {
     return hit;
   }
 
+  /* ===== 白鹭（geo.EGRETS 配置才启用）=====
+     江南冬天有白鹭留下过冬，立在不冰的浅水边。白鸟在米白纸、满地雪上最容易消失，所以：
+     ①只站在"近岸浅水、身后是湖面"的地方，白身衬在较深的水上；②全身勾淡墨细线、腿喙用黑，
+     像白描。多半一动不动，偶尔低头啄水、挪一步；隔很久才缓缓起飞，贴水飞到同一片湖的
+     另一处岸边落下。只在白天，天黑淡出。点它会飞走。 */
+  initEgretSpots() {
+    const W = this.maskW, H = this.maskH, avoid = (this.geo.DUCKS && this.geo.DUCKS.avoid) || [];
+    const wa = (u, v) => this.waterAt(u, v), spots = [];
+    for (let x = 0; x < W; x += 2) {
+      for (let y = 2; y < H - 2; y++) {
+        const u = (x + 0.5) / W * this.AU, v = (y + 0.5) / H * this.AV;
+        // 脚在浅水、正下方（近处）是岸、身后（画面上方）是一片水
+        if (v > (this.geo.EGRETS.minV || 0) && wa(u, v) > 0.6 && wa(u, v + 2.5) < 0.3 && wa(u, v - 4) > 0.7 && wa(u, v - 7) > 0.7
+          && wa(u - 2, v - 4) > 0.7 && wa(u + 2, v - 4) > 0.7
+          && !avoid.some(r => u > r[0] && u < r[2] && v > r[1] - 8 && v < r[3])) {
+          if (!spots.length || Math.hypot(u - spots[spots.length - 1][0], v - spots[spots.length - 1][1]) > 5) spots.push([u, v]);
+        }
+      }
+    }
+    spots.sort((a, b) => a[0] - b[0]);
+    this.egretSpots = spots;
+  }
+  drawEgretShape(c, x, y, s, dir, pose, flap, a) {
+    const ink = 'rgba(58,60,66,' + (0.7 * a).toFixed(3) + ')', white = 'rgba(250,250,245,' + (0.97 * a).toFixed(3) + ')';
+    const dark = 'rgba(30,30,34,' + (0.9 * a).toFixed(3) + ')', ow = Math.max(0.5, s * 0.12);
+    c.save(); c.translate(x, y); c.scale(dir, 1); c.lineCap = 'round'; c.lineJoin = 'round';
+    const blob = (fn) => { c.beginPath(); fn(); c.fillStyle = white; c.fill(); c.lineWidth = ow; c.strokeStyle = ink; c.stroke(); };
+    const neck = (pts, w) => {   // 描边的粗白线：先画深色宽线再压白线
+      for (const [col, lw] of [[ink, w + ow * 2], [white, w]]) {
+        c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); c.moveTo(pts[0], pts[1]);
+        c.quadraticCurveTo(pts[2], pts[3], pts[4], pts[5]); c.stroke();
+      }
+    };
+    if (pose !== 'fly') {
+      c.fillStyle = 'rgba(250,250,245,' + (0.14 * a).toFixed(3) + ')';                    // 水中倒影
+      c.beginPath(); c.ellipse(s * 0.2, s * 1.6, s * 1.3, s * 0.9, 0, 0, 6.2832); c.fill();
+      c.strokeStyle = dark; c.lineWidth = Math.max(0.6, s * 0.13);                          // 腿
+      c.beginPath(); c.moveTo(-s * 0.15, 0); c.lineTo(-s * 0.05, -s * 2.6); c.moveTo(s * 0.3, 0); c.lineTo(s * 0.15, -s * 2.6); c.stroke();
+      blob(() => c.ellipse(0, -s * 3.45, s * 1.85, s * 0.95, -0.28, 0, 6.2832));           // 身
+      if (pose === 'peck') {                                                                  // 低头啄水
+        neck([s * 1.0, -s * 4.2, s * 2.2, -s * 4.3, s * 2.4, -s * 2.6], s * 0.42);
+        blob(() => c.arc(s * 2.45, -s * 2.45, s * 0.34, 0, 6.2832));
+        c.strokeStyle = dark; c.lineWidth = Math.max(0.6, s * 0.13);
+        c.beginPath(); c.moveTo(s * 2.6, -s * 2.2); c.lineTo(s * 2.95, -s * 1.1); c.stroke();
+      } else {                                                                                // 立着，S 形颈
+        neck([s * 0.95, -s * 4.3, s * 0.5, -s * 5.6, s * 1.15, -s * 6.6], s * 0.42);
+        blob(() => c.arc(s * 1.25, -s * 6.8, s * 0.36, 0, 6.2832));
+        c.strokeStyle = dark; c.lineWidth = Math.max(0.6, s * 0.13);
+        c.beginPath(); c.moveTo(s * 1.55, -s * 6.85); c.lineTo(s * 2.65, -s * 6.62); c.stroke();
+      }
+    } else {                                                                                  // 飞：缩颈、腿向后伸、宽翅慢扇
+      const w = Math.sin(flap);
+      c.strokeStyle = dark; c.lineWidth = Math.max(0.6, s * 0.12);
+      c.beginPath(); c.moveTo(-s * 1.3, s * 0.1); c.lineTo(-s * 3.2, s * 0.35); c.stroke();
+      blob(() => c.ellipse(0, 0, s * 1.6, s * 0.52, 0, 0, 6.2832));
+      blob(() => c.arc(s * 1.75, -s * 0.2, s * 0.36, 0, 6.2832));
+      c.strokeStyle = dark; c.beginPath(); c.moveTo(s * 2.05, -s * 0.22); c.lineTo(s * 3.0, -s * 0.05); c.stroke();
+      blob(() => { c.moveTo(s * 0.6, -s * 0.2); c.quadraticCurveTo(-s * 0.2, -s * (0.8 + w * 2.6), -s * 1.6, -s * (0.5 + w * 3.0));
+        c.quadraticCurveTo(-s * 0.8, -s * (0.3 + w * 1.2), -s * 0.6, -s * 0.1); c.closePath(); });
+    }
+    c.restore();
+  }
+  drawEgrets(c, dt) {
+    const EG = this.geo.EGRETS; if (!EG || !this.maskOK) return;
+    if (!this.egretSpots) { this.initEgretSpots(); if (!this.egretSpots.length) return; }
+    const SP = this.egretSpots;
+    if (!this.egrets) {
+      this.egrets = [];
+      const used = [];
+      for (let k = 0; k < 400 && this.egrets.length < EG.n; k++) {
+        const p = SP[(Math.random() * SP.length) | 0];
+        if (used.some(q => Math.abs(q[0] - p[0]) < 60)) continue;   // 散开，别扎堆
+        used.push(p);
+        this.egrets.push({ u: p[0], v: p[1], st: 'stand', t: 0, dir: Math.random() < 0.5 ? 1 : -1,
+          peckT: 4 + Math.random() * 8, stepT: 6 + Math.random() * 10, flyT: 40 + Math.random() * 60, ph: 0, s: 0.95 + Math.random() * 0.15 });
+      }
+    }
+    const day = Math.max(0, 1 - this.G.lamp * 1.4);   // 暮色起渐隐，入夜不见
+    if (day <= 0.02) return;
+    for (const e of this.egrets) {
+      e.t += dt;
+      if (e.st === 'stand' || e.st === 'peck') {
+        e.peckT -= dt; e.stepT -= dt; e.flyT -= dt;
+        if (e.st === 'peck' && e.t > 0.9) { e.st = 'stand'; e.t = 0; }
+        if (e.st === 'stand' && e.peckT <= 0) {
+          e.st = 'peck'; e.t = 0; e.peckT = 5 + Math.random() * 9;
+          this.addRing(e.u + e.dir * 2.9 * e.s * 0.6, e.v + 0.3, 0.25);
+        }
+        if (e.stepT <= 0) { e.stepT = 7 + Math.random() * 12; if (Math.random() < 0.3) e.dir *= -1; }
+        if (e.flyT <= 0) this.takeOffEgret(e);
+      } else {                                     // 飞：贴水面的一段缓弧
+        const k = Math.min(1, e.t / e.dur), eased = k * k * (3 - 2 * k);
+        e.u = e.fu + (e.tu - e.fu) * eased;
+        e.v = e.fv + (e.tv - e.fv) * eased - Math.sin(Math.PI * k) * e.arc;
+        e.ph += dt * 5.5 * (k < 0.15 || k > 0.85 ? 1.3 : 1);
+        if (k >= 1) { e.st = 'stand'; e.t = 0; e.u = e.tu; e.v = e.tv; e.flyT = 45 + Math.random() * 70; this.addRing(e.u, e.v + 0.3, 0.4); }
+      }
+      const x = this.SX(e.u), y = this.SY(e.v);
+      if (x < -60 || x > this.stageW + 60 || y < -60 || y > this.stageH + 40) continue;
+      const depth = clamp01((e.v - 100) / 180), s = this.PX(1.05 * e.s * (0.75 + depth * 0.4));
+      this.drawEgretShape(c, x, e.st === 'fly' ? y - s * 3 : y, s, e.dir, e.st, e.ph, day);
+    }
+  }
+  takeOffEgret(e) {
+    if (e.st === 'fly') return;
+    const SP = this.egretSpots;
+    const cands = SP.filter(p => Math.abs(p[0] - e.u) > 25 && Math.abs(p[0] - e.u) < 160 && Math.abs(p[1] - e.v) < 60
+      && !this.egrets.some(o => o !== e && Math.abs(o.u - p[0]) < 20));
+    if (!cands.length) { e.flyT = 30 + Math.random() * 30; return; }
+    const tg = cands[(Math.random() * cands.length) | 0];
+    e.st = 'fly'; e.t = 0; e.fu = e.u; e.fv = e.v; e.tu = tg[0]; e.tv = tg[1];
+    e.dir = tg[0] > e.u ? 1 : -1; e.dur = 5 + Math.abs(tg[0] - e.u) / 40; e.arc = 5 + Math.random() * 5; e.ph = 0;
+    this.addRing(e.u, e.v + 0.3, 0.5);
+  }
+  scareEgrets(u, v, r) {
+    if (!this.egrets) return false;
+    let hit = false;
+    for (const e of this.egrets) if (e.st !== 'fly' && Math.abs(e.u - u) < r && v > e.v - 9 && v < e.v + 3) { this.takeOffEgret(e); hit = true; }
+    return hit;
+  }
+
   /* ===== 昏鸦（geo.CROWS 配置才启用）=====
      "枯藤老树昏鸦"：只在黄昏，三五只乌鸦从天上缓缓飞回，落在画里的枯树冠顶；
      入夜仍栖着，天亮（或把时辰拨回白天）才飞走。点它们会惊起。 */
@@ -1855,6 +1977,7 @@ class Engine {
     this.drawFish(c, dt);
     this.drawRings(c, dt);
     this.drawDucks(c, dt);
+    this.drawEgrets(c, dt);
     this.drawSplashes(c, dt);
     this.drawFalls(c);
     this.drawBoats(c, dt);
@@ -1930,7 +2053,7 @@ class Engine {
       }
       const u = (this.S.x + lx) / this.DW * this.AU, v = (this.S.y - this.offY + ly) / this.DH * this.AV;
       if (u >= 0 && u <= this.AU && v >= 0 && v <= this.AV) {
-        if (this.scareCrows(u, v, 10)) {
+        if (this.scareEgrets(u, v, 5) || this.scareCrows(u, v, 10)) {
           // 惊起昏鸦
         } else if (this.waterAt(u, v) > 0.5) {
           this.scareDucks(u, v, 8);

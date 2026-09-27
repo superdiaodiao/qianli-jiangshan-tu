@@ -146,7 +146,8 @@ module.exports = { AU, AV, NT, ART_W, ART_H, HORIZON, LANES, BASE, CHIMNEYS, WAL
   SPINDRIFT: true,                       // 阵风时峰顶吹雪（晴天也起风）
   SPARKLE: { rate: 22, lum: 178 },       // 晴天雪面闪光
   SPARROWS: { every: [14, 28], n: [2, 4] },   // 寒雀：偶尔飞来落在雪松枝头
-  DUCKS: { n: 8, avoid: [[3500, 138, 3670, 194]] },                       // 野鸭：未冰的湖湾里慢游，拖 V 形水纹，偶尔扎猛子
+  DUCKS: { n: 8, avoid: [[3500, 138, 3670, 194]] },
+  EGRETS: { n: 4, minV: 165 },          // minV：卷首远江是远景，不放白鹭（比例不对）                      // 白鹭：近岸浅水边立着，偶尔啄水、贴水飞到别处；仅白天                       // 野鸭：未冰的湖湾里慢游，拖 V 形水纹，偶尔扎猛子
   CROWS: { every: [8, 14], n: [2, 4] },  // 昏鸦：黄昏飞回枯树，天亮离去
   BELL: true,                            // 暮夜偶闻寺钟
   HINT_TAP: '点松枝落雪惊雀 · 点湖面起涟漪',
