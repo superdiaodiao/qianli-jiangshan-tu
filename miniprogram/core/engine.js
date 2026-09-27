@@ -1133,14 +1133,19 @@ class Engine {
         r: 0.7 + Math.random() * (big > 1 ? 1.3 : 1.0), l: 0.6 + Math.random() * 0.4,
         trail: Math.random() < 0.45 });
     }
-    this.clumps.push({ u, v, t: 0, life: 2.0, g: grains, big, span });
+    this.clumps.push({ u, v, t: 0, life: 1.8, g: grains, big, span, hold: big > 1 ? 0.12 : 0.35 });
   }
   drawSnowDrops(c, dt) {
     const SD = this.geo.SNOWDROP;
     if (SD && this.pineTops && this.pineTops.length) {
+      // 真机反馈"像吐出来的"：一两秒就有树凭空冒一团雪。真实的松枝落雪很少见，
+      // 多在一阵风刮过、或鸟落枝/起飞时。所以平时十来秒才偶尔一处，阵风最大时再落一两处
       this.dropT -= dt;
-      if (this.dropT <= 0) {
-        this.dropT = SD.every[0] + Math.random() * (SD.every[1] - SD.every[0]);
+      const gustPeak = this.gustEnv > 0.85 && !this._gustDropped;
+      if (this.gustEnv < 0.3) this._gustDropped = false;
+      if (gustPeak) this._gustDropped = true;
+      if (this.dropT <= 0 || gustPeak) {
+        if (!gustPeak) this.dropT = SD.every[0] + Math.random() * (SD.every[1] - SD.every[0]);
         // 只在屏内的树冠里挑（按 u 排过序，二分出可见区间）
         const uL = this.S.x / this.DW * this.AU, uR = (this.S.x + this.stageW) / this.DW * this.AU;
         const P = this.pineTops, lb = t => { let lo = 0, hi = P.length; while (lo < hi) { const m = (lo + hi) >> 1; if (P[m][0] < t) lo = m + 1; else hi = m; } return lo; };
@@ -1159,8 +1164,18 @@ class Engine {
       const x0 = this.SX(cl.u), y0 = this.SY(cl.v);
       if (x0 < -80 || x0 > this.stageW + 80) continue;
       const k = cl.t / cl.life;
+      // 枝头原本压着的那团雪：先静静在那儿（淡入很快，读作"本来就有"），
+      // 随雪粒一粒粒脱落而变薄、消失——雪是从这里滑下去的，不是凭空冒出来的
+      {
+        const hk = Math.max(0, 1 - Math.max(0, cl.t - cl.hold) / 0.45), w = this.PX(cl.span * 1.05), h = this.PX(1.6);
+        if (hk > 0) {
+          c.globalAlpha = Math.min(1, cl.t * 10) * hk * 0.95;
+          c.drawImage(this.SP_FLAKES[1], x0 - w / 2, y0 - h * 0.2, w, h * 1.4);
+          c.drawImage(fl, x0 - w * 0.45, y0 - h * 0.1, w * 0.9, h);
+        }
+      }
       // 雪纱：跟着雪幕往下拉长的一层极淡白纱（宽 = 枝长，不在起点鼓胀）
-      const fallen = this.PX(Math.min(46, 20 * Math.max(0, cl.t - 0.15) * Math.max(0, cl.t - 0.15)));
+      const tf = Math.max(0, cl.t - cl.hold - 0.1), fallen = this.PX(Math.min(46, 30 * tf * tf));
       if (fallen > 1) {
         const w = this.PX(cl.span * 1.1);
         c.globalAlpha = Math.min(1, cl.t * 3) * (1 - k) * (cl.big > 1 ? 0.26 : 0.2);
@@ -1168,11 +1183,11 @@ class Engine {
       }
       for (let gi = 0; gi < cl.g.length; gi++) {
         const g = cl.g[gi];
-        const tt = cl.t - g.delay; if (tt <= 0) continue;
-        g.vv += 40 * dt; g.vu += (Math.random() - 0.5) * 0.8 * dt;
+        const tt = cl.t - g.delay - cl.hold; if (tt <= 0) continue;
+        g.vv += 60 * dt; g.vu += (Math.random() - 0.5) * 0.8 * dt;
         g.du += g.vu * dt; g.dv += g.vv * dt;
         const kk = tt / (cl.life * g.l); if (kk >= 1) continue;
-        const a = Math.min(1, tt * 12) * Math.pow(1 - kk, 1.2) * 0.95;
+        const a = Math.pow(1 - kk, 1.2) * 0.95;          // 不淡入：它原本就在枝头那团雪里
         const r = this.PX(g.r) * (1 - kk * 0.5);
         const gx = x0 + this.PX(g.du), gy = y0 + this.PX(g.dv);
         if (g.trail && g.vv > 4) {                 // 下落拖影：竖直的一道淡痕
@@ -1248,7 +1263,8 @@ class Engine {
       }
     }
     if (!this.sparrows.length) return;
-    const ink = this.G.ink, col = 'rgba(' + (ink[0] + 20 | 0) + ',' + (ink[1] + 20 | 0) + ',' + (ink[2] + 22 | 0) + ',0.88)';
+    // 中性墨色：用时辰墨色（黄昏偏红褐）会让小鸟在手机上读成"红色的东西"
+    const nk = Math.round(40 + 18 * (1 - this.G.lamp)), col = 'rgba(' + nk + ',' + nk + ',' + (nk + 4) + ',0.88)';
     for (let i = this.sparrows.length - 1; i >= 0; i--) {
       const b = this.sparrows[i]; b.t += dt; b.ph += dt * 26;
       if (b.t < 0) continue;
@@ -1288,6 +1304,7 @@ class Engine {
   }
   flushSparrow(b, startled) {
     if (b.st === 2) return;
+    if (b.st === 1 && b.kind !== 'ground' && Math.random() < 0.5) this.spawnSnowDrop(b.u, b.v + 0.8, 1);   // 起飞一蹬，枝上雪簌簌落下
     b.st = 2; b.t = 0; b.dir = startled ? (Math.random() < 0.5 ? 1 : -1) : b.dir;
     b.vu = b.dir * (startled ? 16 : 10); b.vvv = startled ? -12 : -7;
   }
@@ -1319,8 +1336,8 @@ class Engine {
         if (this.ducks.length < D.n && Math.random() < 0.65 && wet(u + 3, v + 0.8)) this.ducks.push(mk(3, 0.8));   // 成对
       }
     }
-    const ink = this.G.ink, col = 'rgba(' + (ink[0] + 12 | 0) + ',' + (ink[1] + 12 | 0) + ',' + (ink[2] + 14 | 0) + ',0.86)';
-    const refl = 'rgba(' + (ink[0] + 12 | 0) + ',' + (ink[1] + 12 | 0) + ',' + (ink[2] + 14 | 0) + ',0.16)';
+    const nk = Math.round(38 + 16 * (1 - this.G.lamp));
+    const col = 'rgba(' + nk + ',' + nk + ',' + (nk + 4) + ',0.86)', refl = 'rgba(' + nk + ',' + nk + ',' + (nk + 4) + ',0.16)';
     for (const d of this.ducks) {
       d.ph += dt;
       d.turnT -= dt;
@@ -1420,24 +1437,26 @@ class Engine {
         for (let i = 0; i < n; i++) {
           const base = spots[i % spots.length], extra = Math.floor(i / spots.length);
           const tg = [base[0] + (extra ? (extra % 2 ? 1 : -1) * 3.8 * Math.ceil(extra / 2) : 0), base[1] + extra * 0.8];
-          this.crows.push({ st: 0, t: -i * (0.5 + Math.random() * 0.7),
-            su: tg[0] - dir * (50 + Math.random() * 40), sv: -12 - Math.random() * 20,
+          this.crows.push({ st: 0, t: -i * (1.2 + Math.random() * 1.4),
+            su: tg[0] - dir * (uR - uL) * (0.75 + Math.random() * 0.3), sv: tg[1] - 14 - Math.random() * 10,
             tu: tg[0] + (Math.random() - 0.5) * 0.6, tv: tg[1] - 0.3,
-            dur: 3.2 + Math.random() * 1.4, dir, u: 0, v: -50, ph: Math.random() * 6.28, s: 0.95 + Math.random() * 0.2, shT: 3 + Math.random() * 6 });
+            dur: 4.5 + Math.random() * 1.5, dir, u: 0, v: -50, ph: Math.random() * 6.28, s: 0.95 + Math.random() * 0.2, shT: 3 + Math.random() * 6 });
         }
       }
     }
     if (!this.crows.length) return;
-    const ink = this.G.ink, col = 'rgba(' + (ink[0] | 0) + ',' + (ink[1] | 0) + ',' + (ink[2] | 0) + ',0.9)';
+    const col = 'rgba(26,26,30,0.92)';   // 乌鸦是纯黑的；时辰墨色在黄昏偏红褐，飞下来像"洒落的红东西"
     for (let i = this.crows.length - 1; i >= 0; i--) {
       const b = this.crows[i]; b.t += dt; b.ph += dt * 9;
       if (b.t < 0) continue;
       let flying = true;
       if (b.st === 0) {                                  // 从天上缓缓滑翔下来
-        const k = Math.min(1, b.t / b.dur), e = 1 - Math.pow(1 - k, 2.2);
+        // 平飞进来：横向匀速，高度到最后三成才降下去
+        const k = Math.min(1, b.t / b.dur), e = k < 0.85 ? k / 0.85 * 0.95 : 0.95 + (k - 0.85) / 0.15 * 0.05;
         b.u = b.su + (b.tu - b.su) * e;
-        b.v = b.sv + (b.tv - b.sv) * e - Math.sin(Math.PI * k) * 4;
-        if (k > 0.35 && k < 0.8) b.ph -= dt * 7;         // 中段收翅滑翔
+        const dk = Math.max(0, (k - 0.7) / 0.3);
+        b.v = b.sv + (b.tv - b.sv) * dk * dk + Math.sin(b.ph * 0.25) * 0.5 * (1 - dk);
+        if (k > 0.3 && k < 0.55) b.ph -= dt * 6;         // 中途收翅滑一小段
         if (k >= 1) { b.st = 1; b.t = 0; b.u = b.tu; b.v = b.tv; }
         if (!roost) this.flushCrow(b);
       } else if (b.st === 1) {                           // 栖着：偶尔挪一下、转个身
@@ -1452,7 +1471,7 @@ class Engine {
       }
       const x = this.SX(b.u), y = this.SY(b.v);
       if (x < -50 || x > this.stageW + 50 || y < -50) continue;
-      const sz = this.PX(1.7 * b.s);
+      const sz = this.PX((flying ? 2.0 : 1.7) * b.s);   // 飞行时画大些，翅膀才读得出是鸟
       this.drawCrowShape(c, x, y - (flying ? 0 : sz * 1.4), sz, b.dir, flying, b.ph, col);
     }
   }

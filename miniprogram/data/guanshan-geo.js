@@ -137,7 +137,7 @@ module.exports = { AU, AV, NT, ART_W, ART_H, HORIZON, LANES, BASE, CHIMNEYS, WAL
   DEFAULT_WX: { mode: 2, wet: 0.62 },    // 一打开就在下雪（浅色画上小雪档看不出）
   FAR_ERASE: 0.3,                        // 满幅是山，远景雪只轻轻藏到山后
   BIRDS: false,
-  SNOWDROP: { every: [1.2, 3] },         // 松枝落雪：每 1.2~3 秒一处（真机上嫌看不到）
+  SNOWDROP: { every: [9, 16] },          // 松枝落雪：平时九到十六秒偶尔一处，另在阵风最大、寒雀落枝/起飞时落
   SMOKE: { col: [104, 102, 100], a: 0.65, scale: 1.6, rise: 1.7, decay: 1.3 },   // 暖灰炊烟（白烟在浅纸上隐形）
   LAMP_SCALE: 1.6, LAMP_A: 1.4,
   TAP_VEG: 'snowdrop',                   // 点松树抖落积雪（不惊鸟）
@@ -147,7 +147,7 @@ module.exports = { AU, AV, NT, ART_W, ART_H, HORIZON, LANES, BASE, CHIMNEYS, WAL
   SPARKLE: { rate: 22, lum: 178 },       // 晴天雪面闪光
   SPARROWS: { every: [14, 28], n: [2, 4] },   // 寒雀：偶尔飞来落在雪松枝头
   DUCKS: { n: 8, avoid: [[3500, 138, 3670, 194]] },                       // 野鸭：未冰的湖湾里慢游，拖 V 形水纹，偶尔扎猛子
-  CROWS: { every: [10, 22], n: [3, 6] },  // 昏鸦：黄昏飞回枯树，天亮离去
+  CROWS: { every: [14, 26], n: [2, 4] },  // 昏鸦：黄昏飞回枯树，天亮离去
   BELL: true,                            // 暮夜偶闻寺钟
   HINT_TAP: '点松枝落雪惊雀 · 点湖面起涟漪',
 };

@@ -15,8 +15,6 @@
     <view class="fabs" style="top:{{fabTop}}px">
       <view class="fab ico-sound {{soundOn?'on':''}}" catchtouchstart="noop" catchtouchmove="noop"
         catchtouchend="onSoundTap" catchtap="onSoundTap"></view>
-      <view class="fab ico-bell {{bellOn?'on':''}}" wx:if="{{hasBell}}" catchtouchstart="noop" catchtouchmove="noop"
-        catchtouchend="onBellTap" catchtap="onBellTap"></view>
       <view class="fab ico-save" catchtouchstart="noop" catchtouchmove="noop"
         catchtouchend="onSnapTap" catchtap="onSnapTap"></view>
     </view>
@@ -82,6 +80,7 @@
         <view class="btn serif {{autoOn?'on':''}}" bindtap="onAuto">时辰自转</view>
         <view class="btn serif {{tourOn?'on':''}}" bindtap="onTour">巡游</view>
         <view class="btn serif {{zoomOn?'on':''}}" bindtap="onZoom">{{zoomLabel}}</view>
+        <view class="btn serif {{bellOn?'on':''}}" wx:if="{{hasBell}}" bindtap="onBellTap">钟声</view>
       </view>
       <view class="segBlock">
         <text class="segLabel serif">天候</text>
