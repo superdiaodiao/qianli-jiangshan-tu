@@ -1398,43 +1398,68 @@ class Engine {
     spots.sort((a, b) => a[0] - b[0]);
     this.egretSpots = spots;
   }
-  drawEgretShape(c, x, y, s, dir, pose, flap, a) {
+  /* 白鹭姿态用一组参数描述，逐帧向目标平滑过渡（猛啄那一下过渡极快）：
+     hx,hy 头的位置；cx,cy 颈的弯折控制点；ba 喙的朝向（0 平直向前，正值向下）；
+     tilt 身子倾角；wing 张翅程度；以上坐标都以身长 s 为单位、脚为原点、面朝右 */
+  egretPose(name) {
+    return ({
+      stand:  { hx: 1.25, hy: -6.8, cx: 0.5, cy: -5.6, ba: 0.12, tilt: -0.28, wing: 0 },
+      stalk:  { hx: 2.5, hy: -5.0, cx: 1.7, cy: -5.9, ba: 0.55, tilt: -0.12, wing: 0 },
+      coil:   { hx: 1.15, hy: -5.1, cx: 0.1, cy: -6.1, ba: 0.75, tilt: -0.1, wing: 0 },
+      strike: { hx: 3.1, hy: -1.1, cx: 2.1, cy: -3.3, ba: 1.35, tilt: 0.08, wing: 0 },
+      lift:   { hx: 1.6, hy: -6.5, cx: 1.3, cy: -5.2, ba: -0.35, tilt: -0.3, wing: 0 },
+      preen:  { hx: -0.7, hy: -4.5, cx: 0.9, cy: -6.1, ba: 2.8, tilt: -0.25, wing: 0 },
+      spread: { hx: 1.3, hy: -6.9, cx: 0.5, cy: -5.7, ba: 0.1, tilt: -0.35, wing: 1 },
+    })[name];
+  }
+  drawEgretShape(c, x, y, s, dir, P, a, e) {
     const ink = 'rgba(58,60,66,' + (0.7 * a).toFixed(3) + ')', white = 'rgba(250,250,245,' + (0.97 * a).toFixed(3) + ')';
     const dark = 'rgba(30,30,34,' + (0.9 * a).toFixed(3) + ')', ow = Math.max(0.5, s * 0.12);
     c.save(); c.translate(x, y); c.scale(dir, 1); c.lineCap = 'round'; c.lineJoin = 'round';
     const blob = (fn) => { c.beginPath(); fn(); c.fillStyle = white; c.fill(); c.lineWidth = ow; c.strokeStyle = ink; c.stroke(); };
-    const neck = (pts, w) => {   // 描边的粗白线：先画深色宽线再压白线
-      for (const [col, lw] of [[ink, w + ow * 2], [white, w]]) {
-        c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); c.moveTo(pts[0], pts[1]);
-        c.quadraticCurveTo(pts[2], pts[3], pts[4], pts[5]); c.stroke();
-      }
-    };
-    if (pose !== 'fly') {
-      c.fillStyle = 'rgba(250,250,245,' + (0.14 * a).toFixed(3) + ')';                    // 水中倒影
-      c.beginPath(); c.ellipse(s * 0.2, s * 1.6, s * 1.3, s * 0.9, 0, 0, 6.2832); c.fill();
-      c.strokeStyle = dark; c.lineWidth = Math.max(0.6, s * 0.13);                          // 腿
-      c.beginPath(); c.moveTo(-s * 0.15, 0); c.lineTo(-s * 0.05, -s * 2.6); c.moveTo(s * 0.3, 0); c.lineTo(s * 0.15, -s * 2.6); c.stroke();
-      blob(() => c.ellipse(0, -s * 3.45, s * 1.85, s * 0.95, -0.28, 0, 6.2832));           // 身
-      if (pose === 'peck') {                                                                  // 低头啄水
-        neck([s * 1.0, -s * 4.2, s * 2.2, -s * 4.3, s * 2.4, -s * 2.6], s * 0.42);
-        blob(() => c.arc(s * 2.45, -s * 2.45, s * 0.34, 0, 6.2832));
-        c.strokeStyle = dark; c.lineWidth = Math.max(0.6, s * 0.13);
-        c.beginPath(); c.moveTo(s * 2.6, -s * 2.2); c.lineTo(s * 2.95, -s * 1.1); c.stroke();
-      } else {                                                                                // 立着，S 形颈
-        neck([s * 0.95, -s * 4.3, s * 0.5, -s * 5.6, s * 1.15, -s * 6.6], s * 0.42);
-        blob(() => c.arc(s * 1.25, -s * 6.8, s * 0.36, 0, 6.2832));
-        c.strokeStyle = dark; c.lineWidth = Math.max(0.6, s * 0.13);
-        c.beginPath(); c.moveTo(s * 1.55, -s * 6.85); c.lineTo(s * 2.65, -s * 6.62); c.stroke();
-      }
-    } else {                                                                                  // 飞：缩颈、腿向后伸、宽翅慢扇
-      const w = Math.sin(flap);
+    const wob = e.wob > 0 ? Math.sin(e.t * 45) * s * 0.18 * Math.min(1, e.wob * 3) : 0;   // 抖雪时身子一阵哆嗦
+    if (e.st === 'fly') {
+      const w = Math.sin(e.ph), land = e.landK || 0;   // 落水前张翅刹住、腿往前伸
       c.strokeStyle = dark; c.lineWidth = Math.max(0.6, s * 0.12);
-      c.beginPath(); c.moveTo(-s * 1.3, s * 0.1); c.lineTo(-s * 3.2, s * 0.35); c.stroke();
-      blob(() => c.ellipse(0, 0, s * 1.6, s * 0.52, 0, 0, 6.2832));
-      blob(() => c.arc(s * 1.75, -s * 0.2, s * 0.36, 0, 6.2832));
-      c.strokeStyle = dark; c.beginPath(); c.moveTo(s * 2.05, -s * 0.22); c.lineTo(s * 3.0, -s * 0.05); c.stroke();
-      blob(() => { c.moveTo(s * 0.6, -s * 0.2); c.quadraticCurveTo(-s * 0.2, -s * (0.8 + w * 2.6), -s * 1.6, -s * (0.5 + w * 3.0));
-        c.quadraticCurveTo(-s * 0.8, -s * (0.3 + w * 1.2), -s * 0.6, -s * 0.1); c.closePath(); });
+      c.beginPath();
+      if (land > 0.3) { c.moveTo(-s * 0.2, s * 0.3); c.lineTo(s * 0.6, s * 2.2); }
+      else { c.moveTo(-s * 1.3, s * 0.1); c.lineTo(-s * 3.2, s * 0.35); }
+      c.stroke();
+      blob(() => c.ellipse(0, 0, s * 1.6, s * 0.52, -land * 0.5, 0, 6.2832));
+      blob(() => c.arc(s * 1.75, -s * 0.2 - land * s * 0.8, s * 0.36, 0, 6.2832));
+      c.strokeStyle = dark; c.beginPath(); c.moveTo(s * 2.05, -s * 0.22 - land * s * 0.8); c.lineTo(s * 3.0, -s * 0.05 - land * s * 0.8); c.stroke();
+      const up = land > 0.3 ? 1 : w;
+      blob(() => { c.moveTo(s * 0.6, -s * 0.2); c.quadraticCurveTo(-s * 0.2, -s * (0.8 + up * 2.6), -s * 1.6, -s * (0.5 + up * 3.0));
+        c.quadraticCurveTo(-s * 0.8, -s * (0.3 + up * 1.2), -s * 0.6, -s * 0.1); c.closePath(); });
+      c.restore(); return;
+    }
+    c.fillStyle = 'rgba(250,250,245,' + (0.14 * a).toFixed(3) + ')';                      // 水中倒影
+    c.beginPath(); c.ellipse(s * 0.2, s * 1.6, s * 1.3, s * 0.9, 0, 0, 6.2832); c.fill();
+    c.strokeStyle = dark; c.lineWidth = Math.max(0.6, s * 0.13);                            // 腿（走动时交替抬）
+    const lift = e.walk ? Math.max(0, Math.sin(e.stepPh)) * s * 0.5 : 0, lift2 = e.walk ? Math.max(0, -Math.sin(e.stepPh)) * s * 0.5 : 0;
+    c.beginPath(); c.moveTo(-s * 0.15, -lift); c.lineTo(-s * 0.05, -s * 2.6); c.moveTo(s * 0.3, -lift2); c.lineTo(s * 0.15, -s * 2.6); c.stroke();
+    c.translate(wob, 0);
+    if (P.wing > 0.02) {                                                                     // 舒展双翅
+      const sp = P.wing;
+      for (const k of [-1, 1]) blob(() => { c.moveTo(0, -s * 3.8); c.quadraticCurveTo(k * s * 2.2 * sp, -s * (5.5 + 1.2 * sp), k * s * 3.4 * sp, -s * (3.6 + 2.2 * sp));
+        c.quadraticCurveTo(k * s * 2.0 * sp, -s * 3.4, 0, -s * 3.2); c.closePath(); });
+    }
+    blob(() => c.ellipse(0, -s * 3.45, s * 1.85, s * 0.95, P.tilt, 0, 6.2832));              // 身
+    const bx = s * 0.95, by = -s * 4.1, hx = s * P.hx, hy = s * P.hy;
+    for (const [col, lw] of [[ink, s * 0.42 + ow * 2], [white, s * 0.42]]) {               // 颈：先深色宽线再压白线
+      c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); c.moveTo(bx, by);
+      c.quadraticCurveTo(s * P.cx, s * P.cy, hx, hy); c.stroke();
+    }
+    blob(() => c.arc(hx, hy, s * 0.36, 0, 6.2832));                                           // 头
+    const L = s * 1.15, ex = hx + Math.cos(P.ba) * (s * 0.3 + L), ey = hy + Math.sin(P.ba) * (s * 0.3 + L);
+    c.strokeStyle = dark; c.lineWidth = Math.max(0.6, s * 0.14);                              // 喙
+    c.beginPath(); c.moveTo(hx + Math.cos(P.ba) * s * 0.3, hy + Math.sin(P.ba) * s * 0.3); c.lineTo(ex, ey); c.stroke();
+    if (e.fish > 0) {                                                                         // 叼着的小鱼：银白、扭动
+      c.save(); c.translate(ex, ey); c.rotate(Math.PI / 2 + Math.sin(e.t * 28) * 0.5);
+      c.fillStyle = 'rgba(214,224,232,' + a.toFixed(3) + ')'; c.strokeStyle = ink; c.lineWidth = ow * 0.8;
+      c.beginPath(); c.ellipse(0, s * 0.5, s * 0.2, s * 0.62, 0, 0, 6.2832); c.fill(); c.stroke();
+      c.beginPath(); c.moveTo(0, s * 1.05); c.lineTo(-s * 0.2, s * 1.35); c.lineTo(s * 0.2, s * 1.35); c.closePath(); c.fill(); c.stroke();
+      c.restore();
     }
     c.restore();
   }
@@ -1447,36 +1472,89 @@ class Engine {
       const used = [];
       for (let k = 0; k < 400 && this.egrets.length < EG.n; k++) {
         const p = SP[(Math.random() * SP.length) | 0];
-        if (used.some(q => Math.abs(q[0] - p[0]) < 60)) continue;   // 散开，别扎堆
+        if (used.some(q => Math.abs(q[0] - p[0]) < 60)) continue;
         used.push(p);
-        this.egrets.push({ u: p[0], v: p[1], st: 'stand', t: 0, dir: Math.random() < 0.5 ? 1 : -1,
-          peckT: 4 + Math.random() * 8, stepT: 6 + Math.random() * 10, flyT: 40 + Math.random() * 60, ph: 0, s: 0.95 + Math.random() * 0.15 });
+        const P0 = Object.assign({}, this.egretPose('stand'));
+        this.egrets.push({ u: p[0], v: p[1], st: 'idle', t: 0, dur: 1 + Math.random() * 3, dir: Math.random() < 0.5 ? 1 : -1,
+          P: P0, target: 'stand', rate: 4, flyT: 20 + Math.random() * 30, ph: 0, s: 0.95 + Math.random() * 0.15,
+          fish: 0, wob: 0, walk: false, stepPh: 0 });
       }
     }
     const day = Math.max(0, 1 - this.G.lamp * 1.4);   // 暮色起渐隐，入夜不见
     if (day <= 0.02) return;
+    for (const e of this.egrets) this.stepEgret(e, dt);
     for (const e of this.egrets) {
-      e.t += dt;
-      if (e.st === 'stand' || e.st === 'peck') {
-        e.peckT -= dt; e.stepT -= dt; e.flyT -= dt;
-        if (e.st === 'peck' && e.t > 0.9) { e.st = 'stand'; e.t = 0; }
-        if (e.st === 'stand' && e.peckT <= 0) {
-          e.st = 'peck'; e.t = 0; e.peckT = 5 + Math.random() * 9;
-          this.addRing(e.u + e.dir * 2.9 * e.s * 0.6, e.v + 0.3, 0.25);
-        }
-        if (e.stepT <= 0) { e.stepT = 7 + Math.random() * 12; if (Math.random() < 0.3) e.dir *= -1; }
-        if (e.flyT <= 0) this.takeOffEgret(e);
-      } else {                                     // 飞：贴水面的一段缓弧
-        const k = Math.min(1, e.t / e.dur), eased = k * k * (3 - 2 * k);
-        e.u = e.fu + (e.tu - e.fu) * eased;
-        e.v = e.fv + (e.tv - e.fv) * eased - Math.sin(Math.PI * k) * e.arc;
-        e.ph += dt * 5.5 * (k < 0.15 || k > 0.85 ? 1.3 : 1);
-        if (k >= 1) { e.st = 'stand'; e.t = 0; e.u = e.tu; e.v = e.tv; e.flyT = 45 + Math.random() * 70; this.addRing(e.u, e.v + 0.3, 0.4); }
-      }
       const x = this.SX(e.u), y = this.SY(e.v);
       if (x < -60 || x > this.stageW + 60 || y < -60 || y > this.stageH + 40) continue;
       const depth = clamp01((e.v - 100) / 180), s = this.PX(1.05 * e.s * (0.75 + depth * 0.4));
-      this.drawEgretShape(c, x, e.st === 'fly' ? y - s * 3 : y, s, e.dir, e.st, e.ph, day);
+      this.drawEgretShape(c, x, e.st === 'fly' ? y - s * 3 : y, s, e.dir, e.P, day, e);
+    }
+  }
+  /* 行为：一段一段地排——捕鱼（悄行→定住蓄力→猛啄→叼鱼吞下 / 扑空甩头）约六成，
+     其余是静立、梳羽、抖雪、舒翅；每三十到六十秒贴水飞到别处，落水张翅刹住 */
+  setEgret(e, st, dur, target, rate) { e.st = st; e.t = 0; e.dur = dur; if (target) e.target = target; e.rate = rate || 4; }
+  nextEgretAct(e) {
+    e.walk = false;
+    if (e.flyT <= 0) { this.takeOffEgret(e); if (e.st === 'fly') return; }
+    const r = Math.random();
+    if (r < 0.6) this.setEgret(e, 'stalk', 1.8 + Math.random() * 2.2, 'stalk', 3);
+    else if (r < 0.72) this.setEgret(e, 'idle', 1.5 + Math.random() * 2.5, 'stand', 3);
+    else if (r < 0.84) this.setEgret(e, 'preen', 1.6 + Math.random() * 1.2, 'preen', 3);
+    else if (r < 0.93) { this.setEgret(e, 'shake', 0.9, 'stand', 4); e.wob = 0.7;
+      if (Math.random() < 0.7) this.spawnSnowDrop(e.u, e.v - 4, 1); }
+    else this.setEgret(e, 'spread', 1.6, 'spread', 3);
+  }
+  stepEgret(e, dt) {
+    e.t += dt; e.flyT -= dt; if (e.wob > 0) e.wob -= dt; if (e.fish > 0) e.fish -= dt;
+    // 姿态参数向目标平滑过渡
+    const T = this.egretPose(e.target), k = Math.min(1, dt * e.rate);
+    for (const key in T) e.P[key] += (T[key] - e.P[key]) * k;
+    if (e.st === 'fly') {
+      const k2 = Math.min(1, e.t / e.dur), eased = k2 * k2 * (3 - 2 * k2);
+      e.u = e.fu + (e.tu - e.fu) * eased;
+      e.v = e.fv + (e.tv - e.fv) * eased - Math.sin(Math.PI * k2) * e.arc;
+      e.landK = clamp01((k2 - 0.82) / 0.18);
+      e.ph += dt * 5.5 * (k2 < 0.15 ? 1.4 : 1);
+      if (k2 >= 1) {
+        e.u = e.tu; e.v = e.tv; e.landK = 0; e.flyT = 30 + Math.random() * 30;
+        this.addRing(e.u, e.v + 0.3, 0.7); this.addRing(e.u + 1.5, e.v + 0.5, 0.45);
+        Object.assign(e.P, this.egretPose('spread')); this.setEgret(e, 'idle', 1.2, 'stand', 2.5);   // 落定后收翅
+      }
+      return;
+    }
+    switch (e.st) {
+      case 'stalk': {   // 沿岸浅水悄悄走，脖子前探
+        e.walk = true; e.stepPh += dt * 5;
+        const nu = e.u + e.dir * 1.1 * dt;
+        const P = this.egretSpots;
+        let best = null;
+        for (let i = 0; i < P.length; i++) { const q = P[i]; if (Math.abs(q[0] - nu) < 3 && Math.abs(q[1] - e.v) < 4) { best = q; break; } }
+        if (best) { e.u = nu; e.v += (best[1] - e.v) * Math.min(1, dt * 2); } else e.dir *= -1;
+        if (e.t > e.dur) { e.walk = false; this.setEgret(e, 'coil', 0.7 + Math.random() * 1.1, 'coil', 3); }
+        break;
+      }
+      case 'coil':      // 定住、缩颈蓄力
+        if (e.t > e.dur) this.setEgret(e, 'strike', 0.28, 'strike', 26);
+        break;
+      case 'strike':    // 闪电一啄
+        if (e.t > 0.12 && !e.splashed) {
+          e.splashed = true;
+          const tipU = e.u + e.dir * 3.2 * e.s * 0.9, tipV = e.v + 0.2;
+          this.addRing(tipU, tipV, 0.8); this.addRing(tipU + 0.8, tipV + 0.3, 0.5);
+        }
+        if (e.t > e.dur) {
+          e.splashed = false;
+          const caught = Math.random() < (e.fed ? 0.9 : 0.6); e.fed = false;
+          if (caught) { e.fish = 1.6; this.setEgret(e, 'catch', 1.8, 'lift', 3); }
+          else { this.setEgret(e, 'miss', 0.9, 'stand', 4); e.wob = 0.35; }
+        }
+        break;
+      case 'catch':     // 叼着鱼仰头，最后一吞
+        if (e.t > 1.4) e.P.hy -= dt * 2.5;
+        if (e.t > e.dur) { e.fish = 0; this.nextEgretAct(e); }
+        break;
+      default:
+        if (e.t > e.dur) this.nextEgretAct(e);
     }
   }
   takeOffEgret(e) {
@@ -1484,17 +1562,31 @@ class Engine {
     const SP = this.egretSpots;
     const cands = SP.filter(p => Math.abs(p[0] - e.u) > 25 && Math.abs(p[0] - e.u) < 160 && Math.abs(p[1] - e.v) < 60
       && !this.egrets.some(o => o !== e && Math.abs(o.u - p[0]) < 20));
-    if (!cands.length) { e.flyT = 30 + Math.random() * 30; return; }
+    if (!cands.length) { e.flyT = 20 + Math.random() * 20; return; }
     const tg = cands[(Math.random() * cands.length) | 0];
+    e.fish = 0; e.walk = false;
     e.st = 'fly'; e.t = 0; e.fu = e.u; e.fv = e.v; e.tu = tg[0]; e.tv = tg[1];
-    e.dir = tg[0] > e.u ? 1 : -1; e.dur = 5 + Math.abs(tg[0] - e.u) / 40; e.arc = 5 + Math.random() * 5; e.ph = 0;
-    this.addRing(e.u, e.v + 0.3, 0.5);
+    e.dir = tg[0] > e.u ? 1 : -1; e.dur = 4 + Math.abs(tg[0] - e.u) / 45; e.arc = 5 + Math.random() * 5; e.ph = 0;
+    this.addRing(e.u, e.v + 0.3, 0.6);
   }
   scareEgrets(u, v, r) {
     if (!this.egrets) return false;
     let hit = false;
     for (const e of this.egrets) if (e.st !== 'fly' && Math.abs(e.u - u) < r && v > e.v - 9 && v < e.v + 3) { this.takeOffEgret(e); hit = true; }
     return hit;
+  }
+  // 点白鹭附近的水面：它转过来盯住那里、定一下、扎下去，多半能叼到鱼
+  feedEgret(u, v) {
+    if (!this.egrets) return false;
+    for (const e of this.egrets) {
+      if (e.st === 'fly' || e.st === 'strike' || e.st === 'catch') continue;
+      if (Math.abs(e.u - u) < 22 && Math.abs(e.v - v) < 12) {
+        e.dir = u >= e.u ? 1 : -1; e.fed = true; e.walk = false; e.fish = 0;
+        this.setEgret(e, 'coil', 0.6, 'coil', 5);
+        return true;
+      }
+    }
+    return false;
   }
 
   /* ===== 昏鸦（geo.CROWS 配置才启用）=====
@@ -2057,6 +2149,7 @@ class Engine {
           // 惊起昏鸦
         } else if (this.waterAt(u, v) > 0.5) {
           this.scareDucks(u, v, 8);
+          this.feedEgret(u, v);
           this.addRing(u, v, 1);
           for (let k = 0; k < 2; k++) this.addRing(u + (Math.random() - 0.5) * 7, v + (Math.random() - 0.5) * 2.2, 0.7);
         } else if (this.vegAt(u, v) > 0.30 && this.geo.TAP_VEG === 'snowdrop') {
