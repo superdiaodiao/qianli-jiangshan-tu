@@ -147,7 +147,7 @@ module.exports = { AU, AV, NT, ART_W, ART_H, HORIZON, LANES, BASE, CHIMNEYS, WAL
   SPARKLE: { rate: 22, lum: 178 },       // 晴天雪面闪光
   SPARROWS: { every: [14, 28], n: [2, 4] },   // 寒雀：偶尔飞来落在雪松枝头
   DUCKS: { n: 8, avoid: [[3500, 138, 3670, 194]] },                       // 野鸭：未冰的湖湾里慢游，拖 V 形水纹，偶尔扎猛子
-  CROWS: { every: [14, 26], n: [2, 4] },  // 昏鸦：黄昏飞回枯树，天亮离去
+  CROWS: { every: [8, 14], n: [2, 4] },  // 昏鸦：黄昏飞回枯树，天亮离去
   BELL: true,                            // 暮夜偶闻寺钟
   HINT_TAP: '点松枝落雪惊雀 · 点湖面起涟漪',
 };

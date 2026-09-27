@@ -207,7 +207,7 @@ class Engine {
     return this._lamp;
   }
   tintedFlake(col) {
-    const q = v => Math.round(v / 8) * 8;
+    const q = v => Math.min(255, Math.round(v / 8) * 8);   // 封顶 255：有的机型把 rgb 里的 256 当 0，白会变青/蓝/黑
     const key = q(col[0]) + ',' + q(col[1]) + ',' + q(col[2]);
     if (key === this._flakeKey) return this._flakeC;
     this._flakeKey = key;
@@ -219,7 +219,7 @@ class Engine {
     return this._flakeC;
   }
   tintedGlint(col) {
-    const q = v => Math.round(v / 8) * 8;
+    const q = v => Math.min(255, Math.round(v / 8) * 8);   // 封顶 255：有的机型把 rgb 里的 256 当 0，白会变青/蓝/黑
     const key = q(col[0]) + ',' + q(col[1]) + ',' + q(col[2]);
     if (key === this._tintKey) return this._tintC;
     this._tintKey = key;
@@ -1421,12 +1421,28 @@ class Engine {
     const CR = this.geo.CROWS;
     if (!CR || !this.bareTops) return;
     const t = this.S.tod, dusk = t > 0.52 && t < 0.8, roost = t > 0.52 && t < 0.97;
+    // 刚进黄昏（或刚拨到暮）一秒左右就来第一群，别让人干等
+    if (dusk && !this._wasDusk) this.crowT = Math.min(this.crowT, 1.2);
+    this._wasDusk = dusk;
     this.crowT -= dt;
-    if (dusk && this.crowT <= 0 && this.crows.length < 10) {
-      this.crowT = CR.every[0] + Math.random() * (CR.every[1] - CR.every[0]);
+    // 远在两屏以外的乌鸦清掉（滑远了看不见，也别占着名额）
+    for (let i = this.crows.length - 1; i >= 0; i--) {
+      const x = this.SX(this.crows[i].u);
+      if (this.crows[i].st === 1 && (x < -this.stageW * 2 || x > this.stageW * 3)) this.crows.splice(i, 1);
+    }
+    const uL0 = this.S.x / this.DW * this.AU, uR0 = (this.S.x + this.stageW) / this.DW * this.AU;
+    const hereAny = this.crows.some(b => (b.st === 1 || (b.st === 0 && b.t > -3)) && b.tu > uL0 - 10 && b.tu < uR0 + 10);
+    // 滑到一段新地方、那里还没有乌鸦：距上一群超过 3 秒就马上来
+    if (dusk && !hereAny && this.S.t - (this._crowLast || -99) > 3) this.crowT = Math.min(this.crowT, 0);
+    if (dusk && this.crowT <= 0 && this.crows.length < 12) {
+      this.crowT = 1;   // 屏内没有枯树就一秒后再试，不白等一整轮
       const uL = this.S.x / this.DW * this.AU, uR = (this.S.x + this.stageW) / this.DW * this.AU;
       const vis = this.bareTops.filter(p => { const y = this.SY(p[1]); return p[0] > uL + 8 && p[0] < uR - 8 && y > 50 && y < this.stageH - 30; });
-      if (vis.length) {
+      // 屏内已栖着一群就等下一轮；否则来一群
+      const perchedHere = this.crows.some(b => b.st === 1 && b.u > uL && b.u < uR);
+      if (vis.length && !perchedHere) {
+        this.crowT = CR.every[0] + Math.random() * (CR.every[1] - CR.every[0]);
+        this._crowLast = this.S.t;
         const t0 = vis[(Math.random() * vis.length) | 0];
         const near = vis.filter(p => Math.abs(p[0] - t0[0]) < 16 && Math.abs(p[1] - t0[1]) < 10);
         const n = CR.n[0] + ((Math.random() * (CR.n[1] - CR.n[0] + 1)) | 0), dir = Math.random() < 0.5 ? 1 : -1;
@@ -1437,10 +1453,10 @@ class Engine {
         for (let i = 0; i < n; i++) {
           const base = spots[i % spots.length], extra = Math.floor(i / spots.length);
           const tg = [base[0] + (extra ? (extra % 2 ? 1 : -1) * 3.8 * Math.ceil(extra / 2) : 0), base[1] + extra * 0.8];
-          this.crows.push({ st: 0, t: -i * (1.2 + Math.random() * 1.4),
-            su: tg[0] - dir * (uR - uL) * (0.75 + Math.random() * 0.3), sv: tg[1] - 14 - Math.random() * 10,
+          this.crows.push({ st: 0, t: -i * (0.5 + Math.random() * 0.6),
+            su: tg[0] - dir * (uR - uL) * (0.55 + Math.random() * 0.25), sv: tg[1] - 14 - Math.random() * 10,
             tu: tg[0] + (Math.random() - 0.5) * 0.6, tv: tg[1] - 0.3,
-            dur: 4.5 + Math.random() * 1.5, dir, u: 0, v: -50, ph: Math.random() * 6.28, s: 0.95 + Math.random() * 0.2, shT: 3 + Math.random() * 6 });
+            dur: 2.8 + Math.random() * 0.8, dir, u: 0, v: -50, ph: Math.random() * 6.28, s: 0.95 + Math.random() * 0.2, shT: 3 + Math.random() * 6 });
         }
       }
     }
