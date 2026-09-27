@@ -1119,21 +1119,20 @@ class Engine {
   }
   spawnSnowDrop(u, v, big) {
     if (this.clumps.length > 12) return;
-    /* 松枝落雪不是从一个点喷出来：一截枝头的积雪从一端开始滑脱，几乎笔直往下掉、越落越快，
-       边落边碎、拖出一道往下的雪纱。所以雪粒沿一段枝长铺开（不是一点），初速为零、
-       只受重力和一点风，从一端依次脱落；没有在起点鼓起的雪粉团。 */
-    const span = big > 1 ? 9 : 5.5, n = big > 1 ? 60 : 38, grains = [];
-    const fromLeft = Math.random() < 0.5;
+    /* 松枝落雪：雪一露面就已经在往下掉——没有"先出现一团、停一下、再掉"的生成动作
+       （真机反馈：凡是先静后动都像树在"吐"）。雪粒沿一段枝长、从枝下沿稍下方出现，
+       带着下落初速，几乎笔直往下，越落越快，边落边淡。 */
+    const span = big > 1 ? 9 : 6, n = big > 1 ? 56 : 34, grains = [];
     for (let i = 0; i < n; i++) {
       const f = Math.random();
       grains.push({
-        du: (f - 0.5) * span, dv: Math.random() * 1.0 + Math.abs(f - 0.5) * 0.9,   // 枝头略呈弧形
-        vu: this.windNow * 0.5 + (Math.random() - 0.5) * 0.5, vv: 0,
-        delay: (fromLeft ? f : 1 - f) * 0.3 + Math.random() * 0.15,
-        r: 0.7 + Math.random() * (big > 1 ? 1.3 : 1.0), l: 0.6 + Math.random() * 0.4,
-        trail: Math.random() < 0.45 });
+        du: (f - 0.5) * span, dv: 0.6 + Math.random() * 1.6 + Math.abs(f - 0.5) * 0.8,
+        vu: this.windNow * 0.5 + (Math.random() - 0.5) * 0.4, vv: 7 + Math.random() * 7,
+        delay: Math.random() * 0.25,
+        r: 0.7 + Math.random() * (big > 1 ? 1.3 : 1.0), l: 0.55 + Math.random() * 0.45,
+        trail: Math.random() < 0.55 });
     }
-    this.clumps.push({ u, v, t: 0, life: 1.8, g: grains, big, span, hold: big > 1 ? 0.12 : 0.35 });
+    this.clumps.push({ u, v, t: 0, life: 1.5, g: grains, big, span });
   }
   drawSnowDrops(c, dt) {
     const SD = this.geo.SNOWDROP;
@@ -1163,35 +1162,17 @@ class Engine {
       if (cl.t > cl.life) { this.clumps.splice(i, 1); continue; }
       const x0 = this.SX(cl.u), y0 = this.SY(cl.v);
       if (x0 < -80 || x0 > this.stageW + 80) continue;
-      const k = cl.t / cl.life;
-      // 枝头原本压着的那团雪：先静静在那儿（淡入很快，读作"本来就有"），
-      // 随雪粒一粒粒脱落而变薄、消失——雪是从这里滑下去的，不是凭空冒出来的
-      {
-        const hk = Math.max(0, 1 - Math.max(0, cl.t - cl.hold) / 0.45), w = this.PX(cl.span * 1.05), h = this.PX(1.6);
-        if (hk > 0) {
-          c.globalAlpha = Math.min(1, cl.t * 10) * hk * 0.95;
-          c.drawImage(this.SP_FLAKES[1], x0 - w / 2, y0 - h * 0.2, w, h * 1.4);
-          c.drawImage(fl, x0 - w * 0.45, y0 - h * 0.1, w * 0.9, h);
-        }
-      }
-      // 雪纱：跟着雪幕往下拉长的一层极淡白纱（宽 = 枝长，不在起点鼓胀）
-      const tf = Math.max(0, cl.t - cl.hold - 0.1), fallen = this.PX(Math.min(46, 30 * tf * tf));
-      if (fallen > 1) {
-        const w = this.PX(cl.span * 1.1);
-        c.globalAlpha = Math.min(1, cl.t * 3) * (1 - k) * (cl.big > 1 ? 0.26 : 0.2);
-        c.drawImage(fl, x0 - w / 2, y0, w, fallen + this.PX(3));
-      }
       for (let gi = 0; gi < cl.g.length; gi++) {
         const g = cl.g[gi];
-        const tt = cl.t - g.delay - cl.hold; if (tt <= 0) continue;
+        const tt = cl.t - g.delay; if (tt <= 0) continue;
         g.vv += 60 * dt; g.vu += (Math.random() - 0.5) * 0.8 * dt;
         g.du += g.vu * dt; g.dv += g.vv * dt;
         const kk = tt / (cl.life * g.l); if (kk >= 1) continue;
-        const a = Math.pow(1 - kk, 1.2) * 0.95;          // 不淡入：它原本就在枝头那团雪里
+        const a = Math.min(1, tt * 16) * Math.pow(1 - kk, 1.2) * 0.95;   // 几帧内淡入，但此时已在下落
         const r = this.PX(g.r) * (1 - kk * 0.5);
         const gx = x0 + this.PX(g.du), gy = y0 + this.PX(g.dv);
-        if (g.trail && g.vv > 4) {                 // 下落拖影：竖直的一道淡痕
-          const len = this.PX(Math.min(6, g.vv * 0.14));
+        if (g.trail) {                             // 下落拖影：竖直的一道淡痕（从第一帧就有，读作"在掉"）
+          const len = this.PX(Math.min(7, g.vv * 0.16));
           c.globalAlpha = a * 0.4;
           c.drawImage(fl, gx - r * 0.7, gy - len, r * 1.4, len + r);
         }
@@ -1420,7 +1401,9 @@ class Engine {
   drawCrows(c, dt) {
     const CR = this.geo.CROWS;
     if (!CR || !this.bareTops) return;
-    const t = this.S.tod, dusk = t > 0.52 && t < 0.8, roost = t > 0.52 && t < 0.97;
+    // 黄昏到入夜（暮→夜）陆续飞回；夜里一直栖着，天将亮才走。
+    // 真机反馈"看不到"：晚上打开时已过了飞回的时段，一只都没有——夜里屏内有枯树就直接栖着几只
+    const t = this.S.tod, dusk = t > 0.5 && t < 0.84, night = t >= 0.84 && t < 0.97, roost = t > 0.5 && t < 0.97;
     // 刚进黄昏（或刚拨到暮）一秒左右就来第一群，别让人干等
     if (dusk && !this._wasDusk) this.crowT = Math.min(this.crowT, 1.2);
     this._wasDusk = dusk;
@@ -1433,8 +1416,8 @@ class Engine {
     const uL0 = this.S.x / this.DW * this.AU, uR0 = (this.S.x + this.stageW) / this.DW * this.AU;
     const hereAny = this.crows.some(b => (b.st === 1 || (b.st === 0 && b.t > -3)) && b.tu > uL0 - 10 && b.tu < uR0 + 10);
     // 滑到一段新地方、那里还没有乌鸦：距上一群超过 3 秒就马上来
-    if (dusk && !hereAny && this.S.t - (this._crowLast || -99) > 3) this.crowT = Math.min(this.crowT, 0);
-    if (dusk && this.crowT <= 0 && this.crows.length < 12) {
+    if ((dusk || night) && !hereAny && this.S.t - (this._crowLast || -99) > (night ? 0.5 : 3)) this.crowT = Math.min(this.crowT, 0);
+    if ((dusk || night) && this.crowT <= 0 && this.crows.length < 12) {
       this.crowT = 1;   // 屏内没有枯树就一秒后再试，不白等一整轮
       const uL = this.S.x / this.DW * this.AU, uR = (this.S.x + this.stageW) / this.DW * this.AU;
       const vis = this.bareTops.filter(p => { const y = this.SY(p[1]); return p[0] > uL + 8 && p[0] < uR - 8 && y > 50 && y < this.stageH - 30; });
@@ -1453,6 +1436,11 @@ class Engine {
         for (let i = 0; i < n; i++) {
           const base = spots[i % spots.length], extra = Math.floor(i / spots.length);
           const tg = [base[0] + (extra ? (extra % 2 ? 1 : -1) * 3.8 * Math.ceil(extra / 2) : 0), base[1] + extra * 0.8];
+          if (night) {   // 夜里：已经栖着（黄昏就飞回来了）
+            this.crows.push({ st: 1, t: 0, su: tg[0], sv: tg[1], tu: tg[0], tv: tg[1] - 0.3, dur: 1, dir: Math.random() < 0.5 ? 1 : -1,
+              u: tg[0], v: tg[1] - 0.3, ph: 0, s: 0.95 + Math.random() * 0.2, shT: 3 + Math.random() * 8 });
+            continue;
+          }
           this.crows.push({ st: 0, t: -i * (0.5 + Math.random() * 0.6),
             su: tg[0] - dir * (uR - uL) * (0.55 + Math.random() * 0.25), sv: tg[1] - 14 - Math.random() * 10,
             tu: tg[0] + (Math.random() - 0.5) * 0.6, tv: tg[1] - 0.3,
@@ -1487,7 +1475,7 @@ class Engine {
       }
       const x = this.SX(b.u), y = this.SY(b.v);
       if (x < -50 || x > this.stageW + 50 || y < -50) continue;
-      const sz = this.PX((flying ? 2.0 : 1.7) * b.s);   // 飞行时画大些，翅膀才读得出是鸟
+      const sz = this.PX((flying ? 2.6 : 2.2) * b.s);   // 手机上要够大才认得出是乌鸦；飞行时再大些，翅膀读得出
       this.drawCrowShape(c, x, y - (flying ? 0 : sz * 1.4), sz, b.dir, flying, b.ph, col);
     }
   }
