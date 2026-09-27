@@ -245,6 +245,9 @@ class Engine {
     this.clumps = []; this.dropT = 3; this.pineTops = null;
     this.drift = []; this.driftCarry = 0; this.ridgePts = null; this.ridgePeaks = null;
     this.pineSides = null; this.groundPts = null;
+    this.ducks = null;
+    this.crows = []; this.crowT = 3; this.bareTops = null;
+    if (g.BARE) { const B = g.BARE, P = []; for (let i = 0; i < B.length; i += 2) P.push([B[i], B[i + 1]]); this.bareTops = P; }
     if (g.SPINDRIFT && g.RIDGE) this.initRidge();
     this.sparks = []; this.sparkCarry = 0; this.sparkPts = null;
     this.sparrows = []; this.sparrowT = 5;
@@ -1297,6 +1300,173 @@ class Engine {
     return hit;
   }
 
+  /* ===== 野鸭（geo.DUCKS 配置才启用）=====
+     "寒塘野凫"：未冰的湖湾里几只野鸭，多半成对，慢慢游、停一停、掉个头，
+     身后拖 V 形水纹；隔一阵扎个猛子，水面留一圈涟漪，过两三秒在附近冒出来。 */
+  drawDucks(c, dt) {
+    const D = this.geo.DUCKS; if (!D || !this.maskOK) return;
+    const AV_ = D.avoid || [];   // 画里泊船等处：鸭子别游进去和船叠在一起
+    const wet = (u, v) => this.waterAt(u, v) > 0.8 && this.waterAt(u + 3, v) > 0.7 && this.waterAt(u - 3, v) > 0.7
+      && !AV_.some(r => u > r[0] && u < r[2] && v > r[1] && v < r[3]);
+    if (!this.ducks) {
+      this.ducks = [];
+      for (let i = 0; i < D.n * 600 && this.ducks.length < D.n; i++) {
+        const u = Math.random() * this.AU, v = Math.random() * this.AV;
+        if (!wet(u, v)) continue;
+        const mk = (du, dv) => ({ u: u + du, v: v + dv, ang: Math.random() < 0.5 ? 0 : Math.PI, sp: 0, tsp: 0.8 + Math.random(),
+          turnT: 2 + Math.random() * 4, dive: 0, diveT: 10 + Math.random() * 25, ph: Math.random() * 6.28, s: 0.9 + Math.random() * 0.25 });
+        this.ducks.push(mk(0, 0));
+        if (this.ducks.length < D.n && Math.random() < 0.65 && wet(u + 3, v + 0.8)) this.ducks.push(mk(3, 0.8));   // 成对
+      }
+    }
+    const ink = this.G.ink, col = 'rgba(' + (ink[0] + 12 | 0) + ',' + (ink[1] + 12 | 0) + ',' + (ink[2] + 14 | 0) + ',0.86)';
+    const refl = 'rgba(' + (ink[0] + 12 | 0) + ',' + (ink[1] + 12 | 0) + ',' + (ink[2] + 14 | 0) + ',0.16)';
+    for (const d of this.ducks) {
+      d.ph += dt;
+      d.turnT -= dt;
+      if (d.turnT <= 0) {
+        d.turnT = 2.5 + Math.random() * 5;
+        if (Math.random() < 0.35) d.ang = Math.cos(d.ang) >= 0 ? Math.PI : 0;   // 掉头
+        d.ang += (Math.random() - 0.5) * 0.5;
+        d.tsp = Math.random() < 0.3 ? 0 : 0.7 + Math.random() * 1.2;           // 三成停下来歇着
+      }
+      d.sp += (d.tsp - d.sp) * Math.min(1, dt * 0.8);
+      if (d.dive > 0) {                                                        // 水下
+        d.dive -= dt;
+        d.u += Math.cos(d.ang) * 1.2 * dt;
+        if (d.dive <= 0) { if (!wet(d.u, d.v)) d.u -= Math.cos(d.ang) * 3; this.addRing(d.u, d.v, 0.55); }
+        continue;
+      }
+      d.diveT -= dt;
+      if (d.diveT <= 0) { d.diveT = 15 + Math.random() * 30; d.dive = 2 + Math.random() * 1.5; this.addRing(d.u, d.v, 0.7); continue; }
+      const nu = d.u + Math.cos(d.ang) * d.sp * dt, nv = d.v + Math.sin(d.ang) * d.sp * dt * 0.35;
+      if (wet(nu + Math.cos(d.ang) * 2, nv)) { d.u = nu; d.v = nv; }
+      else { d.ang = Math.cos(d.ang) >= 0 ? Math.PI : 0; d.tsp = 0.5; }
+      const x = this.SX(d.u), y = this.SY(d.v) + Math.sin(d.ph * 1.7) * this.PX(0.06);
+      if (x < -30 || x > this.stageW + 30 || y < -20 || y > this.stageH + 20) continue;
+      const s = this.PX(1.35 * d.s), dir = Math.cos(d.ang) >= 0 ? 1 : -1;
+      // V 形水纹：速度越快越长越显
+      if (d.sp > 0.15) {
+        const L = s * (2.5 + d.sp * 2.2), a = Math.min(1, d.sp / 1.4) * 0.5;
+        c.strokeStyle = 'rgba(255,255,255,' + a.toFixed(3) + ')'; c.lineWidth = Math.max(0.5, this.PX(0.2)); c.lineCap = 'round';
+        c.beginPath();
+        c.moveTo(x - dir * s * 1.1, y + s * 0.15); c.lineTo(x - dir * (s * 1.1 + L), y - L * 0.22);
+        c.moveTo(x - dir * s * 1.1, y + s * 0.15); c.lineTo(x - dir * (s * 1.1 + L), y + L * 0.3);
+        c.stroke();
+      }
+      c.save(); c.translate(x, y); c.scale(dir, 1);
+      c.fillStyle = refl; c.beginPath(); c.ellipse(0, s * 0.35, s * 1.25, s * 0.28, 0, 0, 6.2832); c.fill();   // 倒影
+      c.fillStyle = col; c.strokeStyle = col;
+      c.beginPath(); c.ellipse(0, -s * 0.18, s * 1.3, s * 0.48, 0, 0, 6.2832); c.fill();                      // 身
+      c.beginPath(); c.moveTo(-s * 1.2, -s * 0.3); c.lineTo(-s * 1.75, -s * 0.62); c.lineTo(-s * 1.05, -s * 0.05); c.fill();   // 翘尾
+      c.lineWidth = s * 0.34; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(s * 0.72, -s * 0.35); c.lineTo(s * 0.98, -s * 0.8); c.stroke();                // 颈
+      c.beginPath(); c.arc(s * 1.02, -s * 0.9, s * 0.34, 0, 6.2832); c.fill();                                  // 头
+      c.beginPath(); c.moveTo(s * 1.3, -s * 0.95); c.lineTo(s * 1.72, -s * 0.84); c.lineTo(s * 1.3, -s * 0.76); c.fill();   // 扁嘴
+      c.restore();
+      c.strokeStyle = 'rgba(255,255,255,0.28)'; c.lineWidth = Math.max(0.5, this.PX(0.16));                   // 吃水线
+      c.beginPath(); c.moveTo(x - s * 1.2, y + s * 0.2); c.lineTo(x + s * 1.2, y + s * 0.2); c.stroke();
+    }
+  }
+  scareDucks(u, v, r) {
+    if (!this.ducks) return false;
+    let hit = false;
+    for (const d of this.ducks) if (d.dive <= 0 && Math.abs(d.u - u) < r && Math.abs(d.v - v) < r * 0.6) {
+      d.dive = 1.6 + Math.random() * 1.2; d.diveT = 15 + Math.random() * 20; this.addRing(d.u, d.v, 0.8); hit = true;
+    }
+    return hit;
+  }
+
+  /* ===== 昏鸦（geo.CROWS 配置才启用）=====
+     "枯藤老树昏鸦"：只在黄昏，三五只乌鸦从天上缓缓飞回，落在画里的枯树冠顶；
+     入夜仍栖着，天亮（或把时辰拨回白天）才飞走。点它们会惊起。 */
+  drawCrowShape(c, x, y, s, dir, flying, flap, col) {
+    c.save(); c.translate(x, y); c.scale(dir, 1);
+    c.fillStyle = col; c.strokeStyle = col; c.lineCap = 'round';
+    if (!flying) {
+      c.beginPath(); c.ellipse(0, 0, s * 0.62, s * 1.0, 0.45, 0, 6.2832); c.fill();                 // 立着的身子
+      c.beginPath(); c.arc(s * 0.5, -s * 0.95, s * 0.38, 0, 6.2832); c.fill();                        // 头
+      c.beginPath(); c.moveTo(s * 0.8, -s * 1.05); c.lineTo(s * 1.35, -s * 0.9); c.lineTo(s * 0.82, -s * 0.8); c.fill();   // 粗喙
+      c.lineWidth = s * 0.34; c.beginPath(); c.moveTo(-s * 0.35, s * 0.75); c.lineTo(-s * 0.75, s * 1.55); c.stroke();     // 长尾
+    } else {
+      const w = Math.sin(flap);
+      c.beginPath(); c.ellipse(0, 0, s * 1.1, s * 0.42, 0, 0, 6.2832); c.fill();
+      c.beginPath(); c.arc(s * 1.05, -s * 0.12, s * 0.34, 0, 6.2832); c.fill();
+      c.beginPath(); c.moveTo(s * 1.3, -s * 0.18); c.lineTo(s * 1.7, -s * 0.08); c.lineTo(s * 1.3, 0); c.fill();
+      c.lineWidth = s * 0.3; c.beginPath(); c.moveTo(-s * 1.0, 0); c.lineTo(-s * 1.7, s * 0.15); c.stroke();
+      c.lineWidth = s * 0.42;                                                                            // 宽翅，扇得慢
+      c.beginPath(); c.moveTo(s * 0.2, -s * 0.1);
+      c.quadraticCurveTo(-s * 0.4, -s * (0.5 + w * 1.6), -s * 1.4, -s * (0.2 + w * 1.9)); c.stroke();
+    }
+    c.restore();
+  }
+  drawCrows(c, dt) {
+    const CR = this.geo.CROWS;
+    if (!CR || !this.bareTops) return;
+    const t = this.S.tod, dusk = t > 0.52 && t < 0.8, roost = t > 0.52 && t < 0.97;
+    this.crowT -= dt;
+    if (dusk && this.crowT <= 0 && this.crows.length < 10) {
+      this.crowT = CR.every[0] + Math.random() * (CR.every[1] - CR.every[0]);
+      const uL = this.S.x / this.DW * this.AU, uR = (this.S.x + this.stageW) / this.DW * this.AU;
+      const vis = this.bareTops.filter(p => { const y = this.SY(p[1]); return p[0] > uL + 8 && p[0] < uR - 8 && y > 50 && y < this.stageH - 30; });
+      if (vis.length) {
+        const t0 = vis[(Math.random() * vis.length) | 0];
+        const near = vis.filter(p => Math.abs(p[0] - t0[0]) < 16 && Math.abs(p[1] - t0[1]) < 10);
+        const n = CR.n[0] + ((Math.random() * (CR.n[1] - CR.n[0] + 1)) | 0), dir = Math.random() < 0.5 ? 1 : -1;
+        // 各占一处枝头：从树冠上沿里挑彼此相隔 ≥3.5 单位（约一个半身位）的点，不够再往两边错开
+        near.sort((p, q) => p[0] - q[0]);
+        const spots = [];
+        for (const p of near) if (spots.every(q => Math.abs(q[0] - p[0]) >= 3.5)) spots.push(p);
+        for (let i = 0; i < n; i++) {
+          const base = spots[i % spots.length], extra = Math.floor(i / spots.length);
+          const tg = [base[0] + (extra ? (extra % 2 ? 1 : -1) * 3.8 * Math.ceil(extra / 2) : 0), base[1] + extra * 0.8];
+          this.crows.push({ st: 0, t: -i * (0.5 + Math.random() * 0.7),
+            su: tg[0] - dir * (50 + Math.random() * 40), sv: -12 - Math.random() * 20,
+            tu: tg[0] + (Math.random() - 0.5) * 0.6, tv: tg[1] - 0.3,
+            dur: 3.2 + Math.random() * 1.4, dir, u: 0, v: -50, ph: Math.random() * 6.28, s: 0.95 + Math.random() * 0.2, shT: 3 + Math.random() * 6 });
+        }
+      }
+    }
+    if (!this.crows.length) return;
+    const ink = this.G.ink, col = 'rgba(' + (ink[0] | 0) + ',' + (ink[1] | 0) + ',' + (ink[2] | 0) + ',0.9)';
+    for (let i = this.crows.length - 1; i >= 0; i--) {
+      const b = this.crows[i]; b.t += dt; b.ph += dt * 9;
+      if (b.t < 0) continue;
+      let flying = true;
+      if (b.st === 0) {                                  // 从天上缓缓滑翔下来
+        const k = Math.min(1, b.t / b.dur), e = 1 - Math.pow(1 - k, 2.2);
+        b.u = b.su + (b.tu - b.su) * e;
+        b.v = b.sv + (b.tv - b.sv) * e - Math.sin(Math.PI * k) * 4;
+        if (k > 0.35 && k < 0.8) b.ph -= dt * 7;         // 中段收翅滑翔
+        if (k >= 1) { b.st = 1; b.t = 0; b.u = b.tu; b.v = b.tv; }
+        if (!roost) this.flushCrow(b);
+      } else if (b.st === 1) {                           // 栖着：偶尔挪一下、转个身
+        flying = false;
+        b.shT -= dt;
+        if (b.shT <= 0) { b.shT = 4 + Math.random() * 8; if (Math.random() < 0.5) b.dir *= -1; else b.u += (Math.random() - 0.5) * 1.2; }
+        if (!roost) this.flushCrow(b);
+      } else {                                           // 飞走：斜着往天上去
+        b.vu *= 1 + dt * 0.4; b.vvv -= dt * 2;
+        b.u += b.vu * dt; b.v += b.vvv * dt;
+        if (b.t > 7) { this.crows.splice(i, 1); continue; }
+      }
+      const x = this.SX(b.u), y = this.SY(b.v);
+      if (x < -50 || x > this.stageW + 50 || y < -50) continue;
+      const sz = this.PX(1.7 * b.s);
+      this.drawCrowShape(c, x, y - (flying ? 0 : sz * 1.4), sz, b.dir, flying, b.ph, col);
+    }
+  }
+  flushCrow(b) {
+    if (b.st === 2) return;
+    b.st = 2; b.t = 0; b.vu = b.dir * (7 + Math.random() * 4); b.vvv = -(5 + Math.random() * 3);
+  }
+  scareCrows(u, v, r) {
+    let hit = false;
+    for (const b of this.crows) if (b.st === 1 && Math.abs(b.u - u) < r && Math.abs(b.v - v) < r) { this.flushCrow(b); hit = true; }
+    if (hit) for (const b of this.crows) if (b.st === 1 && Math.abs(b.u - u) < r * 3) setTimeout(() => this.flushCrow(b), 150 + Math.random() * 500);
+    return hit;
+  }
+
   /* ===== 峰顶吹雪（geo.SPINDRIFT 配置才启用）=====
      阵风时，雪峰山脊上卷起一缕缕雪烟顺风飘散。山脊取自山陆掩膜每列的上沿，
      峰尖（局部最高点）更容易起烟。雪烟飘进灰色天空，白色才读得出来。 */
@@ -1658,6 +1828,7 @@ class Engine {
     this.drawGlints(c, dt);
     this.drawFish(c, dt);
     this.drawRings(c, dt);
+    this.drawDucks(c, dt);
     this.drawSplashes(c, dt);
     this.drawFalls(c);
     this.drawBoats(c, dt);
@@ -1667,6 +1838,7 @@ class Engine {
     this.drawSnowDrops(c, dt);
     this.drawSparkles(c, dt);
     this.drawSparrows(c, dt);
+    this.drawCrows(c, dt);
     this.drawSpindrift(c, dt);
     this.drawBirds(c, dt);
     this.drawMist(c, dt);
@@ -1732,7 +1904,10 @@ class Engine {
       }
       const u = (this.S.x + lx) / this.DW * this.AU, v = (this.S.y - this.offY + ly) / this.DH * this.AV;
       if (u >= 0 && u <= this.AU && v >= 0 && v <= this.AV) {
-        if (this.waterAt(u, v) > 0.5) {
+        if (this.scareCrows(u, v, 10)) {
+          // 惊起昏鸦
+        } else if (this.waterAt(u, v) > 0.5) {
+          this.scareDucks(u, v, 8);
           this.addRing(u, v, 1);
           for (let k = 0; k < 2; k++) this.addRing(u + (Math.random() - 0.5) * 7, v + (Math.random() - 0.5) * 2.2, 0.7);
         } else if (this.vegAt(u, v) > 0.30 && this.geo.TAP_VEG === 'snowdrop') {
