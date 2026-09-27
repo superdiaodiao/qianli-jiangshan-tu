@@ -1534,6 +1534,7 @@ class Engine {
        不鼓胀，顺风拉长、缓缓淡入淡出；③峰尖再挂一面极淡的"雪旗"，随阵风伸缩。 */
     if (!this.geo.SPINDRIFT || !this.ridgePts) return;
     const ge = this.gustEnv, dir = this.WIND_DIR, st = this.streakSprite();
+    const dayK = 1 - this.G.lamp * 0.85;   // 吹雪要有天光才看得见；夜里只剩一点，免得白痕在暗天上像白鸟
     const uL = this.S.x / this.DW * this.AU, uR = (this.S.x + this.stageW) / this.DW * this.AU;
     if (ge > 0.08) {
       const P = this.ridgePts, vis = [];
@@ -1543,10 +1544,12 @@ class Engine {
         this.driftCarry -= 1;
         const p = vis[(Math.random() * vis.length) | 0];
         const y = this.SY(p[1]); if (y < 2 || y > this.stageH * 0.8) continue;
+        // 真机反馈"鸟是白色的"：夜里深色天上，一道道短而亮、横飞还带起伏的白痕像白鸟。
+        // 现更细更长更淡、不起伏、飘不远就散，读作一层纱而不是一个个会飞的东西
         this.drift.push({ u: p[0] + (Math.random() - 0.5) * 6, v: p[1] + 0.3 + Math.random() * 1.2, t: 0,
-          life: 1.4 + Math.random() * 1.4, vu: dir * (10 + Math.random() * 8) * (0.5 + ge),
-          vv: -(0.2 + Math.random() * 0.8), len: 6 + Math.random() * 7, th: 0.8 + Math.random() * 0.7,
-          a: (0.3 + Math.random() * 0.3) * (0.4 + ge * 0.6), ph: Math.random() * 6.28 });
+          life: 1.0 + Math.random() * 0.8, vu: dir * (7 + Math.random() * 5) * (0.5 + ge),
+          vv: -(0.1 + Math.random() * 0.4), len: 10 + Math.random() * 8, th: 0.55 + Math.random() * 0.4,
+          a: (0.3 + Math.random() * 0.25) * (0.4 + ge * 0.6), ph: 0 });
       }
     }
     // 雪旗：峰尖背风侧一面极淡的长纱，长度与浓淡跟着阵风
@@ -1555,7 +1558,7 @@ class Engine {
         if (pk[0] < uL - 40 || pk[0] > uR) continue;
         const x = this.SX(pk[0]), y = this.SY(pk[1] + 0.8);
         const L = this.PX(10 + ge * 34), H = this.PX(2.2 + ge * 2.5);
-        c.globalAlpha = ge * 0.28;
+        c.globalAlpha = ge * 0.28 * dayK;
         c.save(); c.translate(x, y); c.rotate(-0.06 * dir); c.scale(dir, 1);
         c.drawImage(st, -L * 0.12, -H / 2, L, H);
         c.restore();
@@ -1565,13 +1568,13 @@ class Engine {
     for (let i = this.drift.length - 1; i >= 0; i--) {
       const p = this.drift[i]; p.t += dt;
       if (p.t > p.life) { this.drift.splice(i, 1); continue; }
-      p.u += p.vu * dt; p.v += p.vv * dt + Math.sin(p.t * 4 + p.ph) * 0.4 * dt;
+      p.u += p.vu * dt; p.v += p.vv * dt;
       const x = this.SX(p.u), y = this.SY(p.v);
       if (x < -80 || x > this.stageW + 80) continue;
       const k = p.t / p.life;
       const fade = smooth01(k, 0, 0.3) * (1 - smooth01(k, 0.55, 1));
       const L = this.PX(p.len * (1 + k * 0.7)), T = this.PX(p.th);
-      c.globalAlpha = fade * p.a;
+      c.globalAlpha = fade * p.a * dayK;
       c.save(); c.translate(x, y); c.rotate(Math.atan2(p.vv, Math.abs(p.vu)) * dir); c.scale(dir, 1);
       c.drawImage(st, -L * 0.2, -T / 2, L, T);
       c.restore();
