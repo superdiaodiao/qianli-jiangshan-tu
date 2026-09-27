@@ -54,6 +54,8 @@ Page({
       vmapW: 64, vmapH: Math.round(64 * this.geo.AV / this.geo.AU),
       noRain: !!(this.geo.MODES && this.geo.MODES.indexOf(1) < 0),   // 雪景画不下雨
       hintTap: this.geo.HINT_TAP || '点水面起涟漪 · 点林木惊飞鸟',
+      hasBell: !!this.geo.BELL,
+      bellOn: (() => { try { return wx.getStorageSync('bellOff') !== true; } catch (e) { return true; } })(),
     });
   },
 
@@ -151,6 +153,7 @@ Page({
         return;
       }
       const a = new Ambience(AUDIO_BASE, { bell: !!this.geo.BELL });
+      a.setBell(this.data.bellOn);
       if (!a.ok) { wx.showToast({ title: '音频启动失败', icon: 'none' }); return; }
       this.ambience = a;
     }
@@ -178,6 +181,16 @@ Page({
     if (this._sndLock && Date.now() - this._sndLock < 500) return;
     this._sndLock = Date.now();
     this.onSound();
+  },
+  // 钟声开关：有的人不喜欢钟声；选择记在本地
+  onBellTap() {
+    if (this._bellLock && Date.now() - this._bellLock < 500) return;
+    this._bellLock = Date.now();
+    const on = !this.data.bellOn;
+    this.setData({ bellOn: on });
+    try { wx.setStorageSync('bellOff', !on); } catch (e) {}
+    if (this.ambience) this.ambience.setBell(on);
+    wx.showToast({ title: on ? '钟声已开' : '钟声已关', icon: 'none', duration: 1000 });
   },
   onSnapTap() {
     if (this._snapLock && Date.now() - this._snapLock < 800) return;

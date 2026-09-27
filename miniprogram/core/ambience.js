@@ -78,7 +78,7 @@ class Ambience {
   constructor(base, opts) {
     this.ok = false;
     this.playing = false;
-    this.bell = null; this.bellT = 8;
+    this.bell = null; this.bellT = 8; this.bellOn = true;
     if (opts && opts.bell) {
       // 寺钟：暮夜时分每隔一两分钟远远一声，单次播放不循环
       try { this.bell = wx.createInnerAudioContext(); this.bell.src = base + 'bell.m4a'; this.bell.loop = false; this.bell.volume = 0.6; }
@@ -114,7 +114,7 @@ class Ambience {
   update(wx_, snowy, windNow, lamp) {
     if (!this.ok || !this.playing) return;
     this.t += TICK;
-    if (this.bell && lamp > 0.35 && (this.bellT -= TICK) <= 0) {
+    if (this.bell && this.bellOn && lamp > 0.35 && (this.bellT -= TICK) <= 0) {
       this.bellT = 50 + Math.random() * 60;
       try { this.bell.seek(0); this.bell.play(); } catch (e) {}
     }
@@ -125,7 +125,8 @@ class Ambience {
     const th = snowy ? 0 : heavyMix;
     const breathe = 0.8 + 0.2 * Math.sin(this.t * 0.3);
     // 晴天也要听得见风：手机外放下 0.1 几乎无声
-    const tw = Math.min(1, (0.22 + Math.abs(windNow) * 0.22 + (snowy ? 0.18 + pr * 0.5 : 0) + wx_.storm * 0.25)) * breathe;
+    // 风声（真机反馈"风声好大"）：阵风时风力到 3~4，旧公式直接顶到 1；现压低基线、给风力和雪天加量都封顶
+    const tw = Math.min(0.6, 0.14 + Math.min(3, Math.abs(windNow)) * 0.07 + (snowy ? 0.08 + pr * 0.25 : 0) + wx_.storm * 0.2) * breathe;
     // 向目标各走一步（约 1.5s 到位），避免音量跳变
     const step = (cur, tgt) => cur + (tgt - cur) * 0.22;
     this.v.l = step(this.v.l, tl); this.v.h = step(this.v.h, th); this.v.w = step(this.v.w, tw);
@@ -133,6 +134,12 @@ class Ambience {
     this.rainH.vol = Math.min(1, this.v.h);
     this.wind.vol = Math.min(1, this.v.w);
     this.all.forEach(vc => vc.tick(TICK));
+  }
+
+  setBell(on) {
+    this.bellOn = !!on;
+    if (!on && this.bell) { try { this.bell.stop(); } catch (e) {} }
+    if (on) this.bellT = Math.min(this.bellT, 6);   // 刚打开很快就能听到一声
   }
 
   destroy() {

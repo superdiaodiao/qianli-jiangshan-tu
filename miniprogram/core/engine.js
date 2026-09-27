@@ -244,6 +244,7 @@ class Engine {
     this.smoke = g.CHIMNEYS.map(ch => ({ u: ch[0], v: ch[1], lamp: ch[2], fume: ch[3] !== 0, ps: [] }));
     this.clumps = []; this.dropT = 3; this.pineTops = null;
     this.drift = []; this.driftCarry = 0; this.ridgePts = null; this.ridgePeaks = null;
+    this.pineSides = null; this.groundPts = null;
     if (g.SPINDRIFT && g.RIDGE) this.initRidge();
     this.sparks = []; this.sparkCarry = 0; this.sparkPts = null;
     this.sparrows = []; this.sparrowT = 5;
@@ -1083,6 +1084,31 @@ class Engine {
     }
     pts.sort((a, b) => a[0] - b[0]);
     this.pineTops = pts;
+    // 树冠两侧的枝梢：每行找树冠左右边缘（寒雀不只落树顶）
+    const sides = [];
+    for (let y = 1; y < H - 1; y += 2) {
+      for (let x = 1; x < W - 1; x++) {
+        const i = (y * W + x) * 4 + 1;
+        if (d[i] <= 128) continue;
+        if (d[i - 4] <= 128) sides.push([(x + 0.5) / W * this.AU, (y + 0.5) / H * this.AV, -1]);
+        if (d[i + 4] <= 128) sides.push([(x + 0.5) / W * this.AU, (y + 0.5) / H * this.AV, 1]);
+      }
+    }
+    sides.sort((a, b) => a[0] - b[0]);
+    this.pineSides = sides;
+  }
+  initGroundPts() {
+    // 村舍旁的雪地：炊烟点附近、屋子前方一小片，山陆 ∩ 非水 ∩ 非树
+    const pts = [];
+    for (const ch of this.geo.CHIMNEYS) {
+      if (ch[3] === 0) continue;   // 山寺不算
+      for (let k = 0; k < 60; k++) {
+        const u = ch[0] + (Math.random() - 0.5) * 50, v = ch[1] + 2 + Math.random() * 16;
+        if (this.landAt(u, v) > 0.6 && this.waterAt(u, v) < 0.2 && this.vegAt(u, v) < 0.2) pts.push([u, v, 0]);
+      }
+    }
+    pts.sort((a, b) => a[0] - b[0]);
+    this.groundPts = pts;
   }
   snowColor() {
     const col = this.G.gcol;   // 以白为主，只沾一点时辰的光（与雪片同色）
@@ -1161,13 +1187,14 @@ class Engine {
   /* ===== 寒雀（geo.SPARROWS 配置才启用）=====
      雪中寒雀是宋画老题材（崔白《寒雀图》）。偶尔两三只从画外飞来，落在画里的雪松枝头，
      跳两下、转转头，再一只只飞走；落枝时可能震落一点积雪。淡墨剪影，只在白天。 */
-  drawSparrowShape(c, x, y, s, dir, flying, flap, col) {
+  drawSparrowShape(c, x, y, s, dir, flying, flap, col, peck) {
     c.save(); c.translate(x, y); c.scale(dir, 1);
     c.fillStyle = col; c.strokeStyle = col; c.lineCap = 'round';
     if (!flying) {
       c.beginPath(); c.ellipse(0, 0, s * 1.0, s * 0.66, -0.25, 0, 6.2832); c.fill();       // 身子（蓬着毛）
-      c.beginPath(); c.arc(s * 0.82, -s * 0.52, s * 0.44, 0, 6.2832); c.fill();             // 头
-      c.beginPath(); c.moveTo(s * 1.22, -s * 0.55); c.lineTo(s * 1.55, -s * 0.46); c.lineTo(s * 1.2, -s * 0.38); c.fill();  // 喙
+      const hy = peck ? s * 0.25 : -s * 0.52, hx = peck ? s * 1.0 : s * 0.82;          // 啄食时头低下去
+      c.beginPath(); c.arc(hx, hy, s * 0.44, 0, 6.2832); c.fill();                           // 头
+      c.beginPath(); c.moveTo(hx + s * 0.4, hy - s * 0.03); c.lineTo(hx + s * 0.73, hy + (peck ? s * 0.3 : s * 0.06)); c.lineTo(hx + s * 0.38, hy + s * 0.14); c.fill();  // 喙
       c.lineWidth = s * 0.34; c.beginPath(); c.moveTo(-s * 0.8, s * 0.1); c.lineTo(-s * 1.6, s * 0.62); c.stroke();          // 尾
     } else {
       const w = Math.sin(flap);   // 翅膀上下
@@ -1187,11 +1214,21 @@ class Engine {
     if (this.sparrowT <= 0 && !this.sparrows.length && day > 0.5 && this.WX.precip < 0.8) {
       this.sparrowT = SP.every[0] + Math.random() * (SP.every[1] - SP.every[0]);
       const uL = this.S.x / this.DW * this.AU, uR = (this.S.x + this.stageW) / this.DW * this.AU;
-      const P = this.pineTops, vis = [];
-      for (let i = 0; i < P.length; i += 3) {
-        const y = this.SY(P[i][1]);
-        if (P[i][0] > uL + 10 && P[i][0] < uR - 10 && y > 60 && y < this.stageH - 40) vis.push(P[i]);
-      }
+      // 落处三种：树顶 / 树冠两侧枝梢 / 村舍旁雪地（在地上蹦跳啄食）
+      if (!this.groundPts && this.maskOK) this.initGroundPts();
+      const pick = P => {
+        const out = [];
+        if (!P) return out;
+        for (let i = 0; i < P.length; i += 2) {
+          const y = this.SY(P[i][1]);
+          if (P[i][0] > uL + 10 && P[i][0] < uR - 10 && y > 60 && y < this.stageH - 40) out.push(P[i]);
+        }
+        return out;
+      };
+      const r = Math.random();
+      let kind = r < 0.35 ? 'top' : r < 0.7 ? 'side' : 'ground';
+      let vis = pick(kind === 'top' ? this.pineTops : kind === 'side' ? this.pineSides : this.groundPts);
+      if (!vis.length) { kind = 'top'; vis = pick(this.pineTops); }
       if (vis.length) {
         const t0 = vis[(Math.random() * vis.length) | 0];
         const near = vis.filter(p => Math.abs(p[0] - t0[0]) < 14 && Math.abs(p[1] - t0[1]) < 10);
@@ -1200,10 +1237,10 @@ class Engine {
         for (let i = 0; i < n; i++) {
           const tg = near[(i * 7 + ((Math.random() * 3) | 0)) % near.length];   // 各落各的枝
           const su = fromL ? uL - span * (0.15 + Math.random() * 0.2) : uR + span * (0.15 + Math.random() * 0.2);
-          this.sparrows.push({ st: 0, t: -i * (0.35 + Math.random() * 0.4),
+          this.sparrows.push({ st: 0, kind, t: -i * (0.35 + Math.random() * 0.4),
             su, sv: tg[1] - 30 - Math.random() * 25, tu: tg[0] + (i - (n - 1) / 2) * 2.6 + (Math.random() - 0.5), tv: tg[1] - 0.4,
             dur: 1.8 + Math.random() * 0.8, stay: 5 + Math.random() * 8, hopT: 0.8 + Math.random() * 1.5,
-            dir: fromL ? 1 : -1, u: su, v: 0, ph: Math.random() * 6.28, s: 0.95 + Math.random() * 0.3 });
+            dir: tg[2] ? tg[2] : (fromL ? 1 : -1), u: su, v: 0, ph: Math.random() * 6.28, s: 0.95 + Math.random() * 0.3, peck: 0 });
         }
       }
     }
@@ -1219,12 +1256,18 @@ class Engine {
         b.v = b.sv + (b.tv - b.sv) * e - Math.sin(Math.PI * k) * 6 + Math.sin(b.ph * 0.3) * 0.4 * (1 - k);
         if (k >= 1) {
           b.st = 1; b.t = 0; b.u = b.tu; b.v = b.tv;
-          if (Math.random() < 0.35) this.spawnSnowDrop(b.u, b.v + 0.8, 1);   // 落枝震下一点雪
+          if (b.kind !== 'ground' && Math.random() < 0.35) this.spawnSnowDrop(b.u, b.v + 0.8, 1);   // 落枝震下一点雪
         }
       } else if (b.st === 1) {                           // 栖枝：偶尔跳一下、掉个头
         flying = false;
         b.hopT -= dt;
-        if (b.hopT <= 0) { b.hopT = 0.9 + Math.random() * 1.8; b.hop = 0.18; b.tu += (Math.random() - 0.5) * 1.6; if (Math.random() < 0.4) b.dir *= -1; }
+        const gnd = b.kind === 'ground';
+        if (b.hopT <= 0) {
+          b.hopT = gnd ? 0.5 + Math.random() * 1.1 : 0.9 + Math.random() * 1.8;
+          if (gnd && Math.random() < 0.45) b.peck = 0.35;           // 地上：低头啄一下
+          else { b.hop = 0.18; b.tu += (Math.random() - 0.5) * (gnd ? 3.2 : 1.6); if (Math.random() < 0.4) b.dir *= -1; }
+        }
+        if (b.peck > 0) b.peck -= dt;
         if (b.hop > 0) { b.hop -= dt; flying = false; }
         b.u += (b.tu - b.u) * Math.min(1, dt * 10);
         b.v = b.tv - (b.hop > 0 ? Math.sin(Math.PI * (1 - b.hop / 0.18)) * 1.2 : 0);
@@ -1237,7 +1280,7 @@ class Engine {
       const x = this.SX(b.u), y = this.SY(b.v);
       if (x < -40 || x > this.stageW + 40 || y < -40) continue;
       const sz = this.PX(1.35 * b.s);   // 身长约 3.5 单位 ≈ 手机上 7~9 像素
-      this.drawSparrowShape(c, x, y - sz * 0.6, sz, b.dir, flying, b.ph, col);
+      this.drawSparrowShape(c, x, y - sz * 0.6, sz, b.dir, flying, b.ph, col, b.peck > 0);
     }
   }
   flushSparrow(b, startled) {

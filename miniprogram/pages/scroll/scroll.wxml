@@ -15,6 +15,8 @@
     <view class="fabs" style="top:{{fabTop}}px">
       <view class="fab ico-sound {{soundOn?'on':''}}" catchtouchstart="noop" catchtouchmove="noop"
         catchtouchend="onSoundTap" catchtap="onSoundTap"></view>
+      <view class="fab ico-bell {{bellOn?'on':''}}" wx:if="{{hasBell}}" catchtouchstart="noop" catchtouchmove="noop"
+        catchtouchend="onBellTap" catchtap="onBellTap"></view>
       <view class="fab ico-save" catchtouchstart="noop" catchtouchmove="noop"
         catchtouchend="onSnapTap" catchtap="onSnapTap"></view>
     </view>
