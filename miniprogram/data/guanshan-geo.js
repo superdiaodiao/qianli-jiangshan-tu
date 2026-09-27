@@ -115,6 +115,7 @@ module.exports = { AU, AV, NT, ART_W, ART_H, HORIZON, LANES, BASE, CHIMNEYS, WAL
   GUSTS: true,                           // 阵风卷雪
   SPINDRIFT: true,                       // 阵风时峰顶吹雪（晴天也起风）
   SPARKLE: { rate: 22, lum: 178 },       // 晴天雪面闪光
+  SPARROWS: { every: [14, 28], n: [2, 4] },   // 寒雀：偶尔飞来落在雪松枝头
   BELL: true,                            // 暮夜偶闻寺钟
-  HINT_TAP: '点松枝落雪 · 点湖面起涟漪',
+  HINT_TAP: '点松枝落雪惊雀 · 点湖面起涟漪',
 };

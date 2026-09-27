@@ -246,6 +246,7 @@ class Engine {
     this.drift = []; this.driftCarry = 0; this.ridgePts = null; this.ridgePeaks = null;
     if (g.SPINDRIFT && g.RIDGE) this.initRidge();
     this.sparks = []; this.sparkCarry = 0; this.sparkPts = null;
+    this.sparrows = []; this.sparrowT = 5;
     this.flocks = []; this.birdTimer = 2;
     this.puffs = [];
     // 云气分三层：远雾贴山脊、中霭、近岚（大而淡、飘得快），各自的尺寸疏密不同
@@ -1089,16 +1090,21 @@ class Engine {
   }
   spawnSnowDrop(u, v, big) {
     if (this.clumps.length > 12) return;
-    // 一团积雪先整块从枝头滑落（前 0.3 秒是一坨），随后散成一股雪粒往下泻，
-    // 雪粒错开 0~0.6 秒陆续脱落，读起来是"一股"而不是"几点"。
-    // 尺寸按标注单位（1 单位≈手机上 2 像素）
-    const n = big > 1 ? 52 : 34, spread = big > 1 ? 6 : 4, grains = [];
-    for (let i = 0; i < n; i++) grains.push({
-      du: (Math.random() - 0.5) * spread * 0.4, dv: Math.random() * 1.2,
-      vu: (Math.random() - 0.5) * spread * 0.9 + this.windNow * 0.9, vv: 2 + Math.random() * 3,
-      delay: Math.random() * 0.6,
-      r: 1.0 + Math.random() * (big > 1 ? 1.5 : 1.1), l: 0.75 + Math.random() * 0.25 });
-    this.clumps.push({ u, v, t: 0, life: 2.8, g: grains, big });
+    /* 松枝落雪不是从一个点喷出来：一截枝头的积雪从一端开始滑脱，几乎笔直往下掉、越落越快，
+       边落边碎、拖出一道往下的雪纱。所以雪粒沿一段枝长铺开（不是一点），初速为零、
+       只受重力和一点风，从一端依次脱落；没有在起点鼓起的雪粉团。 */
+    const span = big > 1 ? 9 : 5.5, n = big > 1 ? 60 : 38, grains = [];
+    const fromLeft = Math.random() < 0.5;
+    for (let i = 0; i < n; i++) {
+      const f = Math.random();
+      grains.push({
+        du: (f - 0.5) * span, dv: Math.random() * 1.0 + Math.abs(f - 0.5) * 0.9,   // 枝头略呈弧形
+        vu: this.windNow * 0.5 + (Math.random() - 0.5) * 0.5, vv: 0,
+        delay: (fromLeft ? f : 1 - f) * 0.3 + Math.random() * 0.15,
+        r: 0.7 + Math.random() * (big > 1 ? 1.3 : 1.0), l: 0.6 + Math.random() * 0.4,
+        trail: Math.random() < 0.45 });
+    }
+    this.clumps.push({ u, v, t: 0, life: 2.0, g: grains, big, span });
   }
   drawSnowDrops(c, dt) {
     const SD = this.geo.SNOWDROP;
@@ -1124,31 +1130,128 @@ class Engine {
       const x0 = this.SX(cl.u), y0 = this.SY(cl.v);
       if (x0 < -80 || x0 > this.stageW + 80) continue;
       const k = cl.t / cl.life;
-      const big = cl.big > 1;
-      // 整块：前 0.35 秒一坨雪从枝头滑下
-      if (cl.t < 0.35) {
-        const q = cl.t / 0.35, r = this.PX(big ? 3.4 : 2.6) * (1 - q * 0.3);
-        c.globalAlpha = 1 - q * 0.4;
-        c.drawImage(this.SP_FLAKES[0], x0 - r, y0 + this.PX(q * q * 3) - r, r * 2, r * 2);
+      // 雪纱：跟着雪幕往下拉长的一层极淡白纱（宽 = 枝长，不在起点鼓胀）
+      const fallen = this.PX(Math.min(46, 20 * Math.max(0, cl.t - 0.15) * Math.max(0, cl.t - 0.15)));
+      if (fallen > 1) {
+        const w = this.PX(cl.span * 1.1);
+        c.globalAlpha = Math.min(1, cl.t * 3) * (1 - k) * (cl.big > 1 ? 0.26 : 0.2);
+        c.drawImage(fl, x0 - w / 2, y0, w, fallen + this.PX(3));
       }
-      // 雪粉：一团软白先鼓起再散淡，跟着雪股往下
-      const pr = this.PX((big ? 5 : 4) + k * (big ? 16 : 12));
-      c.globalAlpha = Math.min(1, Math.max(0, cl.t - 0.2) * 5) * (1 - k) * (1 - k) * (big ? 0.85 : 0.7);
-      c.drawImage(fl, x0 - pr, y0 + this.PX(6 + k * 18) - pr * 0.8, pr * 2, pr * 1.6);
-      // 雪粒：错开脱落，受重力下坠、被风带偏
       for (let gi = 0; gi < cl.g.length; gi++) {
         const g = cl.g[gi];
         const tt = cl.t - g.delay; if (tt <= 0) continue;
-        g.vv += 26 * dt; g.vu *= Math.pow(0.6, dt);
+        g.vv += 40 * dt; g.vu += (Math.random() - 0.5) * 0.8 * dt;
         g.du += g.vu * dt; g.dv += g.vv * dt;
         const kk = tt / (cl.life * g.l); if (kk >= 1) continue;
-        const r = this.PX(g.r) * (1 - kk * 0.3);
-        c.globalAlpha = (1 - kk) * 0.95;
-        // 雪粒用带暗边的絮团：落在浅色纸上也读得出
-        c.drawImage(this.SP_FLAKES[gi % 6], x0 + this.PX(g.du) - r * 1.2, y0 + this.PX(g.dv) - r * 1.2, r * 2.4, r * 2.4);
+        const a = Math.min(1, tt * 12) * Math.pow(1 - kk, 1.2) * 0.95;
+        const r = this.PX(g.r) * (1 - kk * 0.5);
+        const gx = x0 + this.PX(g.du), gy = y0 + this.PX(g.dv);
+        if (g.trail && g.vv > 4) {                 // 下落拖影：竖直的一道淡痕
+          const len = this.PX(Math.min(6, g.vv * 0.14));
+          c.globalAlpha = a * 0.4;
+          c.drawImage(fl, gx - r * 0.7, gy - len, r * 1.4, len + r);
+        }
+        c.globalAlpha = a;
+        c.drawImage(this.SP_FLAKES[gi % 6], gx - r * 1.2, gy - r * 1.2, r * 2.4, r * 2.4);
       }
     }
     c.globalAlpha = 1;
+  }
+
+  /* ===== 寒雀（geo.SPARROWS 配置才启用）=====
+     雪中寒雀是宋画老题材（崔白《寒雀图》）。偶尔两三只从画外飞来，落在画里的雪松枝头，
+     跳两下、转转头，再一只只飞走；落枝时可能震落一点积雪。淡墨剪影，只在白天。 */
+  drawSparrowShape(c, x, y, s, dir, flying, flap, col) {
+    c.save(); c.translate(x, y); c.scale(dir, 1);
+    c.fillStyle = col; c.strokeStyle = col; c.lineCap = 'round';
+    if (!flying) {
+      c.beginPath(); c.ellipse(0, 0, s * 1.0, s * 0.66, -0.25, 0, 6.2832); c.fill();       // 身子（蓬着毛）
+      c.beginPath(); c.arc(s * 0.82, -s * 0.52, s * 0.44, 0, 6.2832); c.fill();             // 头
+      c.beginPath(); c.moveTo(s * 1.22, -s * 0.55); c.lineTo(s * 1.55, -s * 0.46); c.lineTo(s * 1.2, -s * 0.38); c.fill();  // 喙
+      c.lineWidth = s * 0.34; c.beginPath(); c.moveTo(-s * 0.8, s * 0.1); c.lineTo(-s * 1.6, s * 0.62); c.stroke();          // 尾
+    } else {
+      const w = Math.sin(flap);   // 翅膀上下
+      c.beginPath(); c.ellipse(0, 0, s * 1.05, s * 0.5, 0, 0, 6.2832); c.fill();
+      c.beginPath(); c.arc(s * 0.95, -s * 0.2, s * 0.38, 0, 6.2832); c.fill();
+      c.lineWidth = s * 0.28; c.beginPath(); c.moveTo(-s * 0.9, 0); c.lineTo(-s * 1.6, s * 0.2); c.stroke();
+      c.lineWidth = s * 0.36;
+      c.beginPath(); c.moveTo(s * 0.1, -s * 0.1); c.quadraticCurveTo(-s * 0.3, -s * (0.4 + w * 1.3), -s * 0.9, -s * (0.1 + w * 1.5)); c.stroke();
+    }
+    c.restore();
+  }
+  drawSparrows(c, dt) {
+    const SP = this.geo.SPARROWS;
+    if (!SP || !this.pineTops || !this.pineTops.length) return;
+    const day = 1 - this.G.lamp;   // 夜里不来
+    this.sparrowT -= dt;
+    if (this.sparrowT <= 0 && !this.sparrows.length && day > 0.5 && this.WX.precip < 0.8) {
+      this.sparrowT = SP.every[0] + Math.random() * (SP.every[1] - SP.every[0]);
+      const uL = this.S.x / this.DW * this.AU, uR = (this.S.x + this.stageW) / this.DW * this.AU;
+      const P = this.pineTops, vis = [];
+      for (let i = 0; i < P.length; i += 3) {
+        const y = this.SY(P[i][1]);
+        if (P[i][0] > uL + 10 && P[i][0] < uR - 10 && y > 60 && y < this.stageH - 40) vis.push(P[i]);
+      }
+      if (vis.length) {
+        const t0 = vis[(Math.random() * vis.length) | 0];
+        const near = vis.filter(p => Math.abs(p[0] - t0[0]) < 14 && Math.abs(p[1] - t0[1]) < 10);
+        const n = SP.n[0] + ((Math.random() * (SP.n[1] - SP.n[0] + 1)) | 0);
+        const fromL = Math.random() < 0.5, span = (uR - uL);
+        for (let i = 0; i < n; i++) {
+          const tg = near[(i * 7 + ((Math.random() * 3) | 0)) % near.length];   // 各落各的枝
+          const su = fromL ? uL - span * (0.15 + Math.random() * 0.2) : uR + span * (0.15 + Math.random() * 0.2);
+          this.sparrows.push({ st: 0, t: -i * (0.35 + Math.random() * 0.4),
+            su, sv: tg[1] - 30 - Math.random() * 25, tu: tg[0] + (i - (n - 1) / 2) * 2.6 + (Math.random() - 0.5), tv: tg[1] - 0.4,
+            dur: 1.8 + Math.random() * 0.8, stay: 5 + Math.random() * 8, hopT: 0.8 + Math.random() * 1.5,
+            dir: fromL ? 1 : -1, u: su, v: 0, ph: Math.random() * 6.28, s: 0.95 + Math.random() * 0.3 });
+        }
+      }
+    }
+    if (!this.sparrows.length) return;
+    const ink = this.G.ink, col = 'rgba(' + (ink[0] + 20 | 0) + ',' + (ink[1] + 20 | 0) + ',' + (ink[2] + 22 | 0) + ',0.88)';
+    for (let i = this.sparrows.length - 1; i >= 0; i--) {
+      const b = this.sparrows[i]; b.t += dt; b.ph += dt * 26;
+      if (b.t < 0) continue;
+      let flying = true;
+      if (b.st === 0) {                                  // 飞来：一段下弯的弧线
+        const k = Math.min(1, b.t / b.dur), e = 1 - Math.pow(1 - k, 2);
+        b.u = b.su + (b.tu - b.su) * e;
+        b.v = b.sv + (b.tv - b.sv) * e - Math.sin(Math.PI * k) * 6 + Math.sin(b.ph * 0.3) * 0.4 * (1 - k);
+        if (k >= 1) {
+          b.st = 1; b.t = 0; b.u = b.tu; b.v = b.tv;
+          if (Math.random() < 0.35) this.spawnSnowDrop(b.u, b.v + 0.8, 1);   // 落枝震下一点雪
+        }
+      } else if (b.st === 1) {                           // 栖枝：偶尔跳一下、掉个头
+        flying = false;
+        b.hopT -= dt;
+        if (b.hopT <= 0) { b.hopT = 0.9 + Math.random() * 1.8; b.hop = 0.18; b.tu += (Math.random() - 0.5) * 1.6; if (Math.random() < 0.4) b.dir *= -1; }
+        if (b.hop > 0) { b.hop -= dt; flying = false; }
+        b.u += (b.tu - b.u) * Math.min(1, dt * 10);
+        b.v = b.tv - (b.hop > 0 ? Math.sin(Math.PI * (1 - b.hop / 0.18)) * 1.2 : 0);
+        if (b.t > b.stay) this.flushSparrow(b, false);
+      } else {                                           // 飞走：斜向上、越飞越快
+        b.vu = (b.vu || b.dir * 12) * (1 + dt * 0.8); b.vvv = (b.vvv || -8) - dt * 4;
+        b.u += b.vu * dt; b.v += b.vvv * dt + Math.sin(b.ph * 0.3) * 0.3 * dt;
+        if (b.t > 4) { this.sparrows.splice(i, 1); continue; }
+      }
+      const x = this.SX(b.u), y = this.SY(b.v);
+      if (x < -40 || x > this.stageW + 40 || y < -40) continue;
+      const sz = this.PX(1.35 * b.s);   // 身长约 3.5 单位 ≈ 手机上 7~9 像素
+      this.drawSparrowShape(c, x, y - sz * 0.6, sz, b.dir, flying, b.ph, col);
+    }
+  }
+  flushSparrow(b, startled) {
+    if (b.st === 2) return;
+    b.st = 2; b.t = 0; b.dir = startled ? (Math.random() < 0.5 ? 1 : -1) : b.dir;
+    b.vu = b.dir * (startled ? 16 : 10); b.vvv = startled ? -12 : -7;
+  }
+  scareSparrows(u, v, r) {
+    let hit = false;
+    for (const b of this.sparrows) if (b.st === 1 && Math.abs(b.u - u) < r && Math.abs(b.v - v) < r) {
+      this.flushSparrow(b, true); hit = true;
+    }
+    if (hit) for (const b of this.sparrows) if (b.st === 1) setTimeout(() => this.flushSparrow(b, true), 80 + Math.random() * 300);
+    return hit;
   }
 
   /* ===== 峰顶吹雪（geo.SPINDRIFT 配置才启用）=====
@@ -1520,6 +1623,7 @@ class Engine {
     this.drawSnowCover(c);
     this.drawSnowDrops(c, dt);
     this.drawSparkles(c, dt);
+    this.drawSparrows(c, dt);
     this.drawSpindrift(c, dt);
     this.drawBirds(c, dt);
     this.drawMist(c, dt);
@@ -1589,6 +1693,7 @@ class Engine {
           this.addRing(u, v, 1);
           for (let k = 0; k < 2; k++) this.addRing(u + (Math.random() - 0.5) * 7, v + (Math.random() - 0.5) * 2.2, 0.7);
         } else if (this.vegAt(u, v) > 0.30 && this.geo.TAP_VEG === 'snowdrop') {
+          this.scareSparrows(u, v, 12);     // 枝头有雀就惊飞
           this.spawnSnowDrop(u, v - 1, 2);   // 点松树：抖落一大团积雪
         } else if (this.vegAt(u, v) > 0.30) {
           this.startle(u, v);
