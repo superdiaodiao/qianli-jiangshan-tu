@@ -1175,53 +1175,67 @@ class Engine {
     }
     this.ridgePts = pts; this.ridgePeaks = peaks;
   }
+  streakSprite() {
+    // 一道横向软痕：左端（迎风、贴着山脊）细淡，中前段最实，右端拖成尾巴
+    if (this._streak) return this._streak;
+    this._streak = sprite(96, 12, (c, w, h) => {
+      const g = c.createLinearGradient(0, 0, w, 0);
+      g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.22, 'rgba(255,255,255,.85)');
+      g.addColorStop(0.5, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      const v = c.createLinearGradient(0, 0, 0, h);
+      v.addColorStop(0, 'rgba(255,255,255,0)'); v.addColorStop(0.5, 'rgba(255,255,255,1)'); v.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = g; c.fillRect(0, 0, w, h); c.globalCompositeOperation = 'destination-in';
+      c.fillStyle = v; c.fillRect(0, 0, w, h);
+    });
+    return this._streak;
+  }
   drawSpindrift(c, dt) {
-    if (!this.geo.SPINDRIFT || !this.ridgePeaks) return;
-    const ge = this.gustEnv, dir = this.WIND_DIR;
-    if (ge > 0.12) {
-      this.driftCarry += dt * ge * 6;   // 每次一簇 3 团，连成一缕
-      const uL = this.S.x / this.DW * this.AU, uR = (this.S.x + this.stageW) / this.DW * this.AU;
-      while (this.driftCarry >= 1 && this.drift.length < 120) {
+    /* 风吹雪不是从一个点往外喷：整条山脊的积雪被风刮起，在背风侧拖成一层薄纱。
+       所以这里 ①沿屏内整条天际线随机起细痕，不聚在峰尖；②每道细痕粗细不变、
+       不鼓胀，顺风拉长、缓缓淡入淡出；③峰尖再挂一面极淡的"雪旗"，随阵风伸缩。 */
+    if (!this.geo.SPINDRIFT || !this.ridgePts) return;
+    const ge = this.gustEnv, dir = this.WIND_DIR, st = this.streakSprite();
+    const uL = this.S.x / this.DW * this.AU, uR = (this.S.x + this.stageW) / this.DW * this.AU;
+    if (ge > 0.08) {
+      const P = this.ridgePts, vis = [];
+      for (let i = 0; i < P.length; i++) if (P[i][0] > uL - 10 && P[i][0] < uR) vis.push(P[i]);
+      this.driftCarry += dt * ge * Math.min(40, vis.length * 1.4);
+      while (this.driftCarry >= 1 && this.drift.length < 160 && vis.length) {
         this.driftCarry -= 1;
-        // 七成从峰尖起，三成从随机一段山脊起
-        let u, v;
-        if (Math.random() < 0.7) {
-          const P = this.ridgePeaks, vis = [];
-          for (let i = 0; i < P.length; i++) if (P[i][0] > uL - 20 && P[i][0] < uR) vis.push(P[i]);
-          if (!vis.length) continue;
-          const p = vis[(Math.random() * vis.length) | 0]; u = p[0]; v = p[1];
-        } else {
-          const P = this.ridgePts, vis = [];
-          for (let i = 0; i < P.length; i += 2) if (P[i][0] > uL && P[i][0] < uR) vis.push(P[i]);
-          if (!vis.length) continue;
-          const p = vis[(Math.random() * vis.length) | 0]; u = p[0]; v = p[1];
-        }
-        const y = this.SY(v); if (y < 4 || y > this.stageH * 0.8) continue;
-        for (let j = 0; j < 3; j++) this.drift.push({ u: u - dir * j * 1.5, v: v + 0.6 + j * 0.4, t: -j * 0.18, life: 2.6 + Math.random() * 2,
-          vu: dir * (8 + Math.random() * 9) * (0.6 + ge), vv: -(0.5 + Math.random() * 1.8),
-          s: 0.9 + Math.random() * 0.9, a: 0.5 + Math.random() * 0.3 });
+        const p = vis[(Math.random() * vis.length) | 0];
+        const y = this.SY(p[1]); if (y < 2 || y > this.stageH * 0.8) continue;
+        this.drift.push({ u: p[0] + (Math.random() - 0.5) * 6, v: p[1] + 0.3 + Math.random() * 1.2, t: 0,
+          life: 1.4 + Math.random() * 1.4, vu: dir * (10 + Math.random() * 8) * (0.5 + ge),
+          vv: -(0.2 + Math.random() * 0.8), len: 6 + Math.random() * 7, th: 0.8 + Math.random() * 0.7,
+          a: (0.3 + Math.random() * 0.3) * (0.4 + ge * 0.6), ph: Math.random() * 6.28 });
       }
     }
-    if (!this.drift.length) return;
-    const fl = this.tintedFlake(this.snowColor());
+    // 雪旗：峰尖背风侧一面极淡的长纱，长度与浓淡跟着阵风
+    if (ge > 0.05 && this.ridgePeaks) {
+      for (const pk of this.ridgePeaks) {
+        if (pk[0] < uL - 40 || pk[0] > uR) continue;
+        const x = this.SX(pk[0]), y = this.SY(pk[1] + 0.8);
+        const L = this.PX(10 + ge * 34), H = this.PX(2.2 + ge * 2.5);
+        c.globalAlpha = ge * 0.28;
+        c.save(); c.translate(x, y); c.rotate(-0.06 * dir); c.scale(dir, 1);
+        c.drawImage(st, -L * 0.12, -H / 2, L, H);
+        c.restore();
+      }
+    }
+    if (!this.drift.length) { c.globalAlpha = 1; return; }
     for (let i = this.drift.length - 1; i >= 0; i--) {
       const p = this.drift[i]; p.t += dt;
       if (p.t > p.life) { this.drift.splice(i, 1); continue; }
-      if (p.t < 0) continue;
-      p.u += p.vu * dt; p.v += p.vv * dt; p.vv += 0.35 * dt;
+      p.u += p.vu * dt; p.v += p.vv * dt + Math.sin(p.t * 4 + p.ph) * 0.4 * dt;
       const x = this.SX(p.u), y = this.SY(p.v);
-      if (x < -60 || x > this.stageW + 60) continue;
+      if (x < -80 || x > this.stageW + 80) continue;
       const k = p.t / p.life;
-      const w = this.PX((4 + k * 22) * p.s), h = this.PX((2 + k * 7) * p.s);
-      c.globalAlpha = Math.sin(Math.PI * Math.min(1, k * 1.15)) * p.a;
-      c.drawImage(fl, x - w * 0.3, y - h / 2, w, h);   // 顺风拉长，重心偏向来风一侧
-      // 夹带的细雪粒
-      if (k < 0.75) {
-        const g = this.PX(0.8);
-        c.globalAlpha = Math.min(1, c.globalAlpha * 1.2);
-        for (let j = 0; j < 3; j++)
-          c.drawImage(this.SP_FLAKES[(i + j) % 6], x + w * (0.1 + j * 0.2) - g, y + h * 0.3 * Math.sin(p.t * 3 + i + j * 2) - g, g * 2, g * 2);
-      }
+      const fade = smooth01(k, 0, 0.3) * (1 - smooth01(k, 0.55, 1));
+      const L = this.PX(p.len * (1 + k * 0.7)), T = this.PX(p.th);
+      c.globalAlpha = fade * p.a;
+      c.save(); c.translate(x, y); c.rotate(Math.atan2(p.vv, Math.abs(p.vu)) * dir); c.scale(dir, 1);
+      c.drawImage(st, -L * 0.2, -T / 2, L, T);
+      c.restore();
     }
     c.globalAlpha = 1;
   }
