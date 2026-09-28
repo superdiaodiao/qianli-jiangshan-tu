@@ -1280,7 +1280,8 @@ class Engine {
       }
       const x = this.SX(b.u), y = this.SY(b.v);
       if (x < -40 || x > this.stageW + 40 || y < -40) continue;
-      const sz = this.PX(1.35 * b.s);   // 身长约 3.5 单位 ≈ 手机上 7~9 像素
+      // 比例以画中人为尺（站人约 5 单位高）：寒雀身长约 2 单位，比真实稍大，靠动作被看见
+      const sz = this.PX(0.7 * b.s);
       this.drawSparrowShape(c, x, y - sz * 0.6, sz, b.dir, flying, b.ph, col, b.peck > 0);
     }
   }
@@ -1343,7 +1344,7 @@ class Engine {
       else { d.ang = Math.cos(d.ang) >= 0 ? Math.PI : 0; d.tsp = 0.5; }
       const x = this.SX(d.u), y = this.SY(d.v) + Math.sin(d.ph * 1.7) * this.PX(0.06);
       if (x < -30 || x > this.stageW + 30 || y < -20 || y > this.stageH + 20) continue;
-      const s = this.PX(1.35 * d.s), dir = Math.cos(d.ang) >= 0 ? 1 : -1;
+      const s = this.PX(0.75 * d.s), dir = Math.cos(d.ang) >= 0 ? 1 : -1;   // 身长约 2.6 单位，约半个人长
       // V 形水纹：速度越快越长越显
       if (d.sp > 0.15) {
         const L = s * (2.5 + d.sp * 2.2), a = Math.min(1, d.sp / 1.4) * 0.5;
@@ -1486,7 +1487,7 @@ class Engine {
     for (const e of this.egrets) {
       const x = this.SX(e.u), y = this.SY(e.v);
       if (x < -60 || x > this.stageW + 60 || y < -60 || y > this.stageH + 40) continue;
-      const depth = clamp01((e.v - 100) / 180), s = this.PX(1.05 * e.s * (0.75 + depth * 0.4));
+      const depth = clamp01((e.v - 100) / 180), s = this.PX(0.55 * e.s * (0.75 + depth * 0.4));   // 站高约 3.9 单位，约四分之三个人
       this.drawEgretShape(c, x, e.st === 'fly' ? y - s * 3 : y, s, e.dir, e.P, day, e);
     }
   }
@@ -1592,13 +1593,26 @@ class Engine {
   /* ===== 昏鸦（geo.CROWS 配置才启用）=====
      "枯藤老树昏鸦"：只在黄昏，三五只乌鸦从天上缓缓飞回，落在画里的枯树冠顶；
      入夜仍栖着，天亮（或把时辰拨回白天）才飞走。点它们会惊起。 */
-  drawCrowShape(c, x, y, s, dir, flying, flap, col) {
+  drawCrowShape(c, x, y, s, dir, flying, flap, col, act, actK) {
     c.save(); c.translate(x, y); c.scale(dir, 1);
     c.fillStyle = col; c.strokeStyle = col; c.lineCap = 'round';
     if (!flying) {
+      const caw = act === 'caw' ? Math.abs(Math.sin(actK * Math.PI * 3)) : 0;    // 叫：仰头张嘴、身子一耸一耸
+      const fl = act === 'flap' ? Math.sin(actK * Math.PI) * Math.abs(Math.sin(actK * Math.PI * 4)) : 0;
+      c.translate(0, -caw * s * 0.18);
+      if (fl > 0.02) {                                                                             // 抖翅：两翼张开扑腾
+        c.lineWidth = s * 0.4;
+        for (const k of [-1, 1]) { c.beginPath(); c.moveTo(0, -s * 0.3); c.quadraticCurveTo(k * s * 1.0, -s * (0.9 + fl * 1.2), k * s * (1.2 + fl * 0.9), -s * (0.1 + fl * 1.3)); c.stroke(); }
+      }
       c.beginPath(); c.ellipse(0, 0, s * 0.62, s * 1.0, 0.45, 0, 6.2832); c.fill();                 // 立着的身子
-      c.beginPath(); c.arc(s * 0.5, -s * 0.95, s * 0.38, 0, 6.2832); c.fill();                        // 头
-      c.beginPath(); c.moveTo(s * 0.8, -s * 1.05); c.lineTo(s * 1.35, -s * 0.9); c.lineTo(s * 0.82, -s * 0.8); c.fill();   // 粗喙
+      const hy = -s * 0.95 - caw * s * 0.25;
+      c.beginPath(); c.arc(s * 0.5, hy, s * 0.38, 0, 6.2832); c.fill();                               // 头
+      if (caw > 0.15) {                                                                            // 张开的喙
+        c.beginPath(); c.moveTo(s * 0.78, hy - s * 0.12); c.lineTo(s * 1.35, hy - s * 0.25 - caw * s * 0.2); c.lineTo(s * 0.86, hy - s * 0.02); c.fill();
+        c.beginPath(); c.moveTo(s * 0.8, hy + s * 0.05); c.lineTo(s * 1.3, hy + s * 0.12 + caw * s * 0.2); c.lineTo(s * 0.82, hy + s * 0.16); c.fill();
+      } else {
+        c.beginPath(); c.moveTo(s * 0.8, hy - s * 0.1); c.lineTo(s * 1.35, hy + s * 0.05); c.lineTo(s * 0.82, hy + s * 0.15); c.fill();   // 粗喙
+      }
       c.lineWidth = s * 0.34; c.beginPath(); c.moveTo(-s * 0.35, s * 0.75); c.lineTo(-s * 0.75, s * 1.55); c.stroke();     // 长尾
     } else {
       const w = Math.sin(flap);
@@ -1662,6 +1676,21 @@ class Engine {
         }
       }
     }
+    // 夜里零星有一只晚归的，从远处飞回屏内已有乌鸦的那棵树
+    if (night && this.S.t - (this._straggler || 0) > (this._stragGap || 20)) {
+      this._straggler = this.S.t; this._stragGap = 18 + Math.random() * 20;
+      const uL = this.S.x / this.DW * this.AU, uR = (this.S.x + this.stageW) / this.DW * this.AU;
+      const home = this.crows.find(b => b.st === 1 && b.u > uL && b.u < uR);
+      if (home) {
+        const cand = this.bareTops.filter(p => Math.abs(p[0] - home.u) < 10 && Math.abs(p[1] - home.v) < 6
+          && !this.crows.some(o => Math.abs(o.tu - p[0]) < 3));
+        if (cand.length) {
+          const tg = cand[(Math.random() * cand.length) | 0], dir = Math.random() < 0.5 ? 1 : -1;
+          this.crows.push({ st: 0, t: 0, su: tg[0] - dir * (uR - uL) * 0.6, sv: tg[1] - 18, tu: tg[0], tv: tg[1] - 0.3,
+            dur: 3 + Math.random(), dir, u: 0, v: -50, ph: 0, s: 0.95 + Math.random() * 0.2, shT: 2 + Math.random() * 4 });
+        }
+      }
+    }
     if (!this.crows.length) return;
     const col = 'rgba(26,26,30,0.92)';   // 乌鸦是纯黑的；时辰墨色在黄昏偏红褐，飞下来像"洒落的红东西"
     for (let i = this.crows.length - 1; i >= 0; i--) {
@@ -1677,10 +1706,51 @@ class Engine {
         if (k > 0.3 && k < 0.55) b.ph -= dt * 6;         // 中途收翅滑一小段
         if (k >= 1) { b.st = 1; b.t = 0; b.u = b.tu; b.v = b.tv; }
         if (!roost) this.flushCrow(b);
-      } else if (b.st === 1) {                           // 栖着：偶尔挪一下、转个身
+      } else if (b.st === 1) {                           // 栖着：叫、抖翅、跳枝、转身，偶尔起飞绕树一圈
         flying = false;
-        b.shT -= dt;
-        if (b.shT <= 0) { b.shT = 4 + Math.random() * 8; if (Math.random() < 0.5) b.dir *= -1; else b.u += (Math.random() - 0.5) * 1.2; }
+        if (b.act) {
+          b.actT2 += dt;
+          const k = Math.min(1, b.actT2 / b.actDur);
+          if (b.act === 'hop') {
+            b.u = b.hfu + (b.htu - b.hfu) * k; b.v = b.hfv + (b.htv - b.hfv) * k - Math.sin(Math.PI * k) * 2.2;
+            flying = k > 0.15 && k < 0.85;
+          }
+          if (k >= 1) b.act = null;
+        } else {
+          b.shT -= dt;
+          if (b.shT <= 0) {
+            b.shT = 2.5 + Math.random() * 5;
+            const r = Math.random();
+            if (r < 0.34) this.crowAct(b, 'caw', 1.0);
+            else if (r < 0.52) this.crowAct(b, 'flap', 0.8);
+            else if (r < 0.7) {
+              // 跳到附近另一根枝
+              const cand = this.bareTops.filter(p => Math.abs(p[0] - b.u) > 1.5 && Math.abs(p[0] - b.u) < 7 && Math.abs(p[1] - b.v) < 5
+                && !this.crows.some(o => o !== b && o.st === 1 && Math.abs(o.u - p[0]) < 2.5));
+              // 附近没有别的枝头，就沿同一根枝往旁边跳一小段
+              if (!cand.length) {
+                const du = (Math.random() < 0.5 ? -1 : 1) * (2.2 + Math.random() * 1.6);
+                if (!this.crows.some(o => o !== b && o.st === 1 && Math.abs(o.u - (b.u + du)) < 2.5)) cand.push([b.u + du, b.v + 0.3 + (Math.random() - 0.5) * 0.8]);
+              }
+              if (cand.length) {
+                const tg = cand[(Math.random() * cand.length) | 0];
+                this.crowAct(b, 'hop', 0.55); b.hfu = b.u; b.hfv = b.v; b.htu = tg[0]; b.htv = tg[1] - 0.3;
+                b.tu = tg[0]; b.tv = tg[1] - 0.3; b.dir = tg[0] > b.u ? 1 : -1;
+              } else b.dir *= -1;
+            }
+            else if (r < 0.82) b.dir *= -1;
+            else if (!this.crows.some(o => o.st === 3)) {                  // 起飞绕树一圈再落回（同一时刻只一只）
+              b.st = 3; b.t = 0; b.cu = b.u; b.cv = b.v - 10 - Math.random() * 6; b.R = 9 + Math.random() * 8;
+              b.a0 = Math.PI / 2; b.rot = Math.random() < 0.5 ? 1 : -1; b.dur = 4 + Math.random() * 2;
+            }
+          }
+        }
+        if (!roost) this.flushCrow(b);
+      } else if (b.st === 3) {                           // 绕树盘旋一圈
+        const k = Math.min(1, b.t / b.dur), ang = b.a0 + b.rot * Math.PI * 2 * k;
+        const nu = b.cu + Math.cos(ang) * b.R, nv = b.cv + Math.sin(ang) * b.R * 0.45;
+        b.dir = nu >= b.u ? 1 : -1; b.u = nu; b.v = nv;
+        if (k >= 1) { b.st = 0; b.t = 0; b.su = b.u; b.sv = b.v; b.dur = 1.6; }   // 滑回原枝
         if (!roost) this.flushCrow(b);
       } else {                                           // 飞走：斜着往天上去
         b.vu *= 1 + dt * 0.4; b.vvv -= dt * 2;
@@ -1689,10 +1759,11 @@ class Engine {
       }
       const x = this.SX(b.u), y = this.SY(b.v);
       if (x < -50 || x > this.stageW + 50 || y < -50) continue;
-      const sz = this.PX((flying ? 2.6 : 2.2) * b.s);   // 手机上要够大才认得出是乌鸦；飞行时再大些，翅膀读得出
-      this.drawCrowShape(c, x, y - (flying ? 0 : sz * 1.4), sz, b.dir, flying, b.ph, col);
+      const sz = this.PX((flying ? 1.35 : 1.1) * b.s);   // 栖高约 2.9 单位，约半个人；飞行时略大，翅膀读得出
+      this.drawCrowShape(c, x, y - (flying ? 0 : sz * 1.4), sz, b.dir, flying, b.ph, col, b.act, b.act ? Math.min(1, b.actT2 / b.actDur) : 0);
     }
   }
+  crowAct(b, act, dur) { b.act = act; b.actT2 = 0; b.actDur = dur; }
   flushCrow(b) {
     if (b.st === 2) return;
     b.st = 2; b.t = 0; b.vu = b.dir * (7 + Math.random() * 4); b.vvv = -(5 + Math.random() * 3);
