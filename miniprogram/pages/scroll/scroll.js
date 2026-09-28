@@ -301,6 +301,6 @@ Page({
     return { title: this.painting.title + ' · ' + this.painting.artist, path: '/pages/scroll/scroll?id=' + this.painting.id };
   },
   onShareTimeline() {
-    return { title: this.painting.title + ' · 卧游' };
+    return { title: this.painting.title + ' · 卧游观画' };
   },
 });

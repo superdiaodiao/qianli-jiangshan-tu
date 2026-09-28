@@ -11,9 +11,9 @@ Page({
     wx.navigateTo({ url: '/pages/scroll/scroll?id=' + id });
   },
   onShareAppMessage() {
-    return { title: '卧游 · 治愈系古画画廊', path: '/pages/gallery/gallery' };
+    return { title: '卧游观画 · 治愈系古画画廊', path: '/pages/gallery/gallery' };
   },
   onShareTimeline() {
-    return { title: '卧游 · 治愈系古画画廊' };
+    return { title: '卧游观画 · 治愈系古画画廊' };
   },
 });
