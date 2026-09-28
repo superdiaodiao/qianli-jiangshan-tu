@@ -46,11 +46,18 @@
 .openBtn { writing-mode: vertical-rl; font-size: 28rpx; letter-spacing: .34em; color: var(--paper);
   border: 1rpx solid rgba(231,220,196,.38); padding: 30rpx 16rpx; }
 
-.hint { position: absolute; top: calc(env(safe-area-inset-top, 20px) + 100rpx); right: 24rpx;
-  font-size: 20rpx; letter-spacing: .2em; color: rgba(231,220,196,.55); z-index: 4;
-  transition: opacity .6s; text-shadow: 0 1rpx 8rpx rgba(0,0,0,.7); text-align: right; line-height: 2;
-  white-space: pre-line; }
-.hint.gone { opacity: 0; }
+
+/* 玩法卡片 */
+.guideMask { position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 9; display: flex;
+  align-items: center; justify-content: center; background: rgba(6,9,12,.55); }
+.guideBox { width: 78%; background: rgba(12,16,20,.94); border: 1rpx solid rgba(201,169,105,.5); padding: 36rpx 36rpx 30rpx; }
+.guideTitle { text-align: center; font-size: 34rpx; letter-spacing: .3em; color: var(--silk); margin-bottom: 20rpx; }
+.guideRow { display: flex; align-items: center; font-size: 28rpx; line-height: 1.6; color: var(--paper); margin: 14rpx 0; }
+.gIcon { flex-shrink: 0; width: 40rpx; height: 40rpx; line-height: 40rpx; text-align: center; font-size: 22rpx;
+  margin-right: 18rpx; color: #f0dccf; background: var(--cinnabar); }
+.guideNote { margin-top: 18rpx; font-size: 22rpx; line-height: 1.6; color: var(--paper-3); letter-spacing: .06em; }
+.guideBtn { margin: 28rpx auto 0; width: 60%; text-align: center; padding: 16rpx 0; font-size: 28rpx; letter-spacing: .3em;
+  color: var(--ink-900); background: var(--silk); }
 
 /* 释文卡 */
 .card { position: absolute; left: 24rpx; bottom: 24rpx; right: 24rpx; background: rgba(10,14,18,.93);

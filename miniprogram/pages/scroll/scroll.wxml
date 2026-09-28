@@ -34,10 +34,17 @@
       </view>
     </view>
 
-    <view class="hint serif {{hintGone?'gone':''}}" style="top:{{fabTop + 46}}px">
-      <view>{{vertical ? '上下拖动展卷' : '左右拖动展卷'}} · 双指缩放</view>
-      <view>{{hintTap}}</view>
-      <view>点朱点看释文</view>
+    <!-- 玩法卡片：每幅画第一次展卷后弹出（控制台「玩法」可再开）；点任意处关闭，随后画上圈出可点之处 -->
+    <view class="guideMask" wx:if="{{guideShow}}" catchtouchstart="noop" catchtouchmove="noop"
+      catchtouchend="onGuideOk" catchtap="onGuideOk">
+      <view class="guideBox">
+        <view class="guideTitle serif">怎 么 看</view>
+        <view class="guideRow serif"><text class="gIcon">拖</text>{{vertical ? '上下拖动展卷' : '左右拖动展卷'}}，双指缩放</view>
+        <view class="guideRow serif" wx:for="{{guideTaps}}" wx:key="index"><text class="gIcon">点</text>{{item}}</view>
+        <view class="guideRow serif"><text class="gIcon">释</text>点画上的朱点，看释文</view>
+        <view class="guideNote" wx:if="{{hintNote}}">{{hintNote}}</view>
+        <view class="guideBtn serif">知 道 了</view>
+      </view>
     </view>
 
     <view class="card {{cardOn?'on':''}}" catchtouchstart="noop"
@@ -81,6 +88,7 @@
         <view class="btn serif {{tourOn?'on':''}}" bindtap="onTour">巡游</view>
         <view class="btn serif {{zoomOn?'on':''}}" bindtap="onZoom">{{zoomLabel}}</view>
         <view class="btn serif {{bellOn?'on':''}}" wx:if="{{hasBell}}" bindtap="onBellTap">钟声</view>
+        <view class="btn serif" bindtap="onGuide">玩法</view>
       </view>
       <view class="segBlock">
         <text class="segLabel serif">天候</text>

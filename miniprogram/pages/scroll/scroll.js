@@ -26,7 +26,7 @@ Page({
     autoOn: false, tourOn: false, zoomOn: false, zoomLabel: '放大',
     mapLeft: 0, mapWidth: 10,
     barPct: 0,
-    introShow: true, introGone: false, hintGone: false,
+    introShow: true, introGone: false, guideShow: false, guideTaps: [],
     cardOn: false, cardT: '', cardD: '', activePoi: -1,
     panelHidden: false,
     soundOn: false,
@@ -55,6 +55,8 @@ Page({
       noRain: !!(this.geo.MODES && this.geo.MODES.indexOf(1) < 0),   // 雪景画不下雨
       hintTap: this.geo.HINT_TAP || '点水面起涟漪 · 点林木惊飞鸟',
       hasBell: !!this.geo.BELL,
+      hintNote: this.geo.HINT_NOTE || '',   // 例：说明鸟兽是后添的、比例略放大
+      guideTaps: (this.geo.HINT_TAP || '点水面起涟漪 · 点林木惊飞鸟').split(' · '),
       bellOn: (() => { try { return wx.getStorageSync('bellOff') !== true; } catch (e) { return true; } })(),
     });
   },
@@ -126,7 +128,18 @@ Page({
     if (this.geo.DEFAULT_WX && !this.data.soundOn && !this._soundUserOff) this.startSound();
     this.setData({ introGone: true });
     setTimeout(() => this.setData({ introShow: false }), 950);
-    setTimeout(() => this.setData({ hintGone: true }), 7000);
+    // 每幅画第一次展卷：卷首淡出后弹出玩法卡片（真机反馈：原来右上角的小字提示根本没注意到）
+    let seen = false;
+    try { seen = wx.getStorageSync('guide_' + this.painting.id) === true; } catch (e) {}
+    if (!seen) setTimeout(() => this.setData({ guideShow: true }), 1000);
+  },
+  onGuide() { this.setData({ guideShow: true }); },
+  onGuideOk() {
+    if (this._guideLock && Date.now() - this._guideLock < 500) return;
+    this._guideLock = Date.now();
+    this.setData({ guideShow: false });
+    try { wx.setStorageSync('guide_' + this.painting.id, true); } catch (e) {}
+    if (this.engine) this.engine.showTapHints();   // 画上直接圈出能点的地方
   },
   onOpen() { this.hideIntro(); if (this.engine) this.engine.startTour(); },
 

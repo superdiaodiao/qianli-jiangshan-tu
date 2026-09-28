@@ -2076,6 +2076,59 @@ class Engine {
     }
   }
 
+  /* ===== 玩法演示：在当前屏内圈出一处树、一处水，一跳一跳地提示"点这里" ===== */
+  showTapHints() {
+    // 树、水的掩膜还没加载完就先记下，加载完再圈（真机网慢时常见）
+    if (!this._wantSince) this._wantSince = this.S.t;
+    if (!this.maskOK || !this.m2OK) { this._wantTapHints = true; return; }
+    this._wantTapHints = false;
+    const pts = [], cx = this.stageW / 2, cy = this.stageH / 2;
+    const pick = (test) => {
+      let best = null, bd = 1e9;
+      for (let sx = 40; sx < this.stageW - 40; sx += 10) {
+        for (let sy = this.stageH * 0.18; sy < this.stageH * 0.85; sy += 10) {
+          const u = (this.S.x + sx - (this.offX || 0)) / this.DW * this.AU, v = (this.S.y - this.offY + sy) / this.DH * this.AV;
+          if (!test(u, v)) continue;
+          if (pts.some(p => Math.hypot(this.SX(p.u) - sx, this.SY(p.v) - sy) < 90)) continue;
+          const d = Math.hypot(sx - cx, sy - cy);
+          if (d < bd) { bd = d; best = { u, v }; }
+        }
+      }
+      return best;
+    };
+    const tree = pick((u, v) => this.vegAt(u, v) > 0.6);
+    if (tree) pts.push(Object.assign(tree, { label: this.geo.TAP_VEG === 'snowdrop' ? '点松枝' : '点林木' }));
+    const water = pick((u, v) => this.waterAt(u, v) > 0.85);
+    if (water) pts.push(Object.assign(water, { label: '点水面' }));
+    this.tapHint = pts.length ? { t: 0, pts } : null;
+    // 当前屏既没树也没水（比如卷首满屏雪山）：先不圈，等拖到有树有水的地方再圈，最多等一分半
+    if (!pts.length && this.S.t - this._wantSince < 90) this._wantTapHints = true;
+    if (pts.length) this._wantSince = 0;
+  }
+  drawTapHints(c, dt) {
+    if (this._wantTapHints && this.maskOK && this.m2OK && (this._tapTry = (this._tapTry || 0) + dt) > 0.4) { this._tapTry = 0; this.showTapHints(); }
+    const H = this.tapHint; if (!H) return;
+    H.t += dt; const T = 7;
+    if (H.t > T) { this.tapHint = null; return; }
+    const fade = Math.min(1, H.t * 3) * Math.min(1, (T - H.t) / 0.8);
+    c.save();
+    c.font = '13px serif'; c.textAlign = 'center'; c.textBaseline = 'top'; c.lineJoin = 'round';
+    for (const p of H.pts) {
+      const x = this.SX(p.u), y = this.SY(p.v);
+      for (const k of [0, 0.5]) {
+        const ph = (H.t * 0.9 + k) % 1, r = 8 + ph * 22;
+        c.globalAlpha = (1 - ph) * 0.9 * fade;
+        c.strokeStyle = 'rgb(255,236,200)'; c.lineWidth = 2;
+        c.beginPath(); c.arc(x, y, r, 0, 6.2832); c.stroke();
+      }
+      c.globalAlpha = 0.9 * fade; c.fillStyle = '#bb4032';
+      c.beginPath(); c.arc(x, y, 4, 0, 6.2832); c.fill();
+      c.globalAlpha = fade; c.lineWidth = 3; c.strokeStyle = 'rgba(10,14,18,.75)'; c.fillStyle = 'rgb(255,244,224)';
+      c.strokeText(p.label, x, y + 26); c.fillText(p.label, x, y + 26);
+    }
+    c.restore();
+  }
+
   /* ===== 主循环 ===== */
   step(dt) {
     const S = this.S;
@@ -2164,6 +2217,7 @@ class Engine {
       c.globalCompositeOperation = 'source-over';
     }
     this.drawPois(c);
+    this.drawTapHints(c, dt);
 
     // 缩略图取景框（有变化才通知页面，免得 setData 刷屏）；竖轴按纵向进度
     const left = this.VERT ? (S.y / this.DH * 100) : (S.x / this.DW * 100);

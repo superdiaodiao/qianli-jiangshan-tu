@@ -151,4 +151,5 @@ module.exports = { AU, AV, NT, ART_W, ART_H, HORIZON, LANES, BASE, CHIMNEYS, WAL
   CROWS: { every: [8, 14], n: [2, 4] },  // 昏鸦：黄昏飞回枯树，天亮离去
   BELL: true,                            // 暮夜偶闻寺钟
   HINT_TAP: '点松枝落雪惊雀 · 点湖面起涟漪',
+  HINT_NOTE: '鸟兽为后添动景，略放大以便观看',   // 寒雀、野鸭、白鹭、昏鸦都不是原画所有，且大于画中比例
 };
