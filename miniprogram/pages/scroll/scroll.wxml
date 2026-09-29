@@ -14,11 +14,18 @@
          动作挂 touchend（同元素 catch 会吞 tap），tap 兜底，JS 里防抖 -->
     <view class="backBtn serif" style="top:{{uiTop}}px" catchtouchstart="noop" catchtouchmove="noop"
       catchtouchend="goBack" catchtap="goBack">⟨ 画廊</view>
+    <!-- 图标下带两字标签：不认识图标的人也知道这俩是干啥的 -->
     <view class="fabs" style="top:{{fabTop}}px">
-      <view class="fab ico-sound {{soundOn?'on':''}}" catchtouchstart="noop" catchtouchmove="noop"
-        catchtouchend="onSoundTap" catchtap="onSoundTap"></view>
-      <view class="fab ico-save" catchtouchstart="noop" catchtouchmove="noop"
-        catchtouchend="onSnapTap" catchtap="onSnapTap"></view>
+      <view class="fabCol">
+        <view class="fab ico-sound {{soundOn?'on':''}}" catchtouchstart="noop" catchtouchmove="noop"
+          catchtouchend="onSoundTap" catchtap="onSoundTap"></view>
+        <view class="fabTag serif">聆音</view>
+      </view>
+      <view class="fabCol">
+        <view class="fab ico-save" catchtouchstart="noop" catchtouchmove="noop"
+          catchtouchend="onSnapTap" catchtap="onSnapTap"></view>
+        <view class="fabTag serif">存图</view>
+      </view>
     </view>
 
     <!-- 竖轴：右侧竖向缩略图，框出当前视窗，点/拖跳转（横卷的缩略图在控制台里） -->
