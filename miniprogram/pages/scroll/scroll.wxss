@@ -115,3 +115,6 @@
 .panelToggle { position: fixed; right: 20rpx; bottom: calc(env(safe-area-inset-bottom, 0px) + 12rpx);
   font-size: 21rpx; letter-spacing: .2em; color: var(--paper-3); padding: 8rpx 18rpx;
   border: 1rpx solid var(--line-soft); background: rgba(10,14,18,.6); z-index: 7; }
+
+/* 时刻画卡合成画布：挪到屏外，不参与布局与触摸 */
+.cardCv { position: fixed; left: 200vw; top: 0; width: 360px; height: 540px; pointer-events: none; }

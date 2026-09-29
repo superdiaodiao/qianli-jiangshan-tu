@@ -5,6 +5,8 @@
     bindtouchstart="onTouchStart" bindtouchmove="onTouchMove"
     bindtouchend="onTouchEnd" bindtouchcancel="onTouchEnd">
     <canvas type="2d" id="stage" class="cv"></canvas>
+    <!-- 时刻画卡的合成画布：常驻屏外，仅存图时使用 -->
+    <canvas type="2d" id="cardCv" class="cardCv"></canvas>
 
     <view class="bar" style="width:{{barPct}}%;opacity:{{barPct>=100?0:1}}"></view>
 

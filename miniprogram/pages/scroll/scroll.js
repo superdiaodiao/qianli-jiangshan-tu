@@ -2,7 +2,16 @@ const paintings = require('../../data/paintings.js');
 const geoIndex = require('../../data/geo-index.js');
 const { Engine } = require('../../core/engine.js');
 const { Ambience } = require('../../core/ambience.js');
-const { AUDIO_BASE } = require('../../config.js');
+const { buildCard } = require('../../core/sharecard.js');
+const shareVerse = require('../../data/sharemeta.js');
+const { AUDIO_BASE, ASSET_BASE } = require('../../config.js');
+
+/* 分享标题的时辰/天气前缀："暮色里的《千里江山图》""雪中的《关山积雪图》" */
+function sharePrefix(todName, mode) {
+  if (mode === 1) return '雨中的';
+  if (mode === 2) return '雪中的';
+  return { 晓: '晨光里的', 午: '午后的', 暮: '暮色里的', 夜: '夜色里的' }[todName] || '';
+}
 
 /* 四时随真实时间：打开画就是此刻的光线。
    5 点=晓(0)，12 点=午(.30)，18 点=暮(.60)，22 点=夜(.84)，次日 5 点回晓 */
@@ -211,30 +220,67 @@ Page({
     this.onSnapshot();
   },
 
-  /* ---- 存图：当前画面（无控制台）存入相册 ---- */
+  /* ---- 存图：此刻画面 / 时刻画卡 ---- */
   onSnapshot() {
     if (!this.canvasNode) return;
-    wx.canvasToTempFilePath({
-      canvas: this.canvasNode,
-      success: res => {
-        wx.saveImageToPhotosAlbum({
-          filePath: res.tempFilePath,
-          success: () => wx.showToast({ title: '已存入相册', icon: 'success' }),
-          fail: err => {
-            if (err.errMsg && err.errMsg.indexOf('auth') >= 0) {
-              wx.showModal({
-                title: '需要相册权限',
-                content: '请在设置中允许保存到相册',
-                confirmText: '去设置',
-                success: r => { if (r.confirm) wx.openSetting(); },
-              });
-            } else if (!(err.errMsg && err.errMsg.indexOf('cancel') >= 0)) {
-              wx.showToast({ title: '保存失败', icon: 'none' });
-            }
-          },
-        });
+    wx.showActionSheet({
+      alertText: '留住此刻',
+      itemList: ['生成时刻画卡', '仅保存画面'],
+      success: r => {
+        if (r.tapIndex === 0) this.saveCard();
+        else if (r.tapIndex === 1) this.snapStage().then(p => this.saveToAlbum(p));
       },
-      fail: () => wx.showToast({ title: '截取失败', icon: 'none' }),
+    });
+  },
+  // 截取当前画布（实时天光+天气，控制台不入画）
+  snapStage() {
+    return new Promise((resolve, reject) => {
+      wx.canvasToTempFilePath({
+        canvas: this.canvasNode,
+        success: res => resolve(res.tempFilePath),
+        fail: reject,
+      });
+    });
+  },
+  saveCard() {
+    wx.showLoading({ title: '题款钤印…', mask: true });
+    this.snapStage()
+      .then(snapPath => new Promise((resolve, reject) => {
+        wx.createSelectorQuery().in(this)
+          .select('#cardCv').fields({ node: true })
+          .exec(res => {
+            if (!res || !res[0] || !res[0].node) { reject(new Error('no card canvas')); return; }
+            buildCard(res[0].node, {
+              snapPath,
+              title: this.painting.title,
+              artist: this.painting.artist,
+              era: this.painting.era || '',
+              verse: shareVerse[this.painting.id] || '',
+              todName: this.data.todName,
+              mode: this.data.mode,
+              qrUrl: ASSET_BASE + 'wxacode.jpg',
+            }).then(resolve, reject);
+          });
+      }))
+      .then(cardPath => { wx.hideLoading(); this.saveToAlbum(cardPath); })
+      .catch(() => { wx.hideLoading(); wx.showToast({ title: '生成失败', icon: 'none' }); });
+  },
+  saveToAlbum(filePath) {
+    wx.saveImageToPhotosAlbum({
+      filePath,
+      success: () => wx.showToast({ title: '已存入相册', icon: 'success' }),
+      fail: err => {
+        if (err.errMsg && err.errMsg.indexOf('auth') >= 0) {
+          wx.showModal({
+            title: '需要相册权限',
+            content: '请在设置中允许保存到相册',
+            confirmText: '去设置',
+            success: r => { if (r.confirm) wx.openSetting(); },
+          });
+        } else if (!(err.errMsg && err.errMsg.indexOf('cancel') >= 0)) {
+          wx.showToast({ title: '保存失败', icon: 'none' });
+        }
+      },
     });
   },
   onMode(e) {
@@ -297,10 +343,19 @@ Page({
     }
   },
 
+  /* 转发卡片带"此刻"：标题按时辰天气措辞，封面抓当前画面截屏。
+     imageUrl 异步走 promise 字段（基础库 2.12+，超时自动退回默认封面） */
   onShareAppMessage() {
-    return { title: this.painting.title + ' · ' + this.painting.artist, path: '/pages/scroll/scroll?id=' + this.painting.id };
+    const title = sharePrefix(this.data.todName, this.data.mode) + '《' + this.painting.title + '》';
+    const path = '/pages/scroll/scroll?id=' + this.painting.id;
+    const base = { title, path, imageUrl: this.painting.cover || this.painting.thumb };
+    return Object.assign({}, base, {
+      promise: this.snapStage()
+        .then(p => Object.assign({}, base, { imageUrl: p }))
+        .catch(() => base),
+    });
   },
   onShareTimeline() {
-    return { title: this.painting.title + ' · 卧游观画' };
+    return { title: sharePrefix(this.data.todName, this.data.mode) + '《' + this.painting.title + '》 · 卧游观画' };
   },
 });
