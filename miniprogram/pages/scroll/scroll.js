@@ -220,17 +220,10 @@ Page({
     this.onSnapshot();
   },
 
-  /* ---- 存图：此刻画面 / 时刻画卡 ---- */
+  /* ---- 存图：点按直接生成时刻画卡，浮层里预览、发朋友、存相册 ---- */
   onSnapshot() {
     if (!this.canvasNode) return;
-    wx.showActionSheet({
-      alertText: '留住此刻',
-      itemList: ['生成时刻画卡', '仅保存画面'],
-      success: r => {
-        if (r.tapIndex === 0) this.saveCard();
-        else if (r.tapIndex === 1) this.snapStage().then(p => this.saveToAlbum(p));
-      },
-    });
+    this.makeCard();
   },
   // 截取当前画布（实时天光+天气，控制台不入画）
   snapStage() {
@@ -242,29 +235,71 @@ Page({
       });
     });
   },
-  saveCard() {
+  makeCard() {
     wx.showLoading({ title: '题款钤印…', mask: true });
+    let sign = '';
+    try { sign = wx.getStorageSync('signName') || ''; } catch (e) {}
     this.snapStage()
-      .then(snapPath => new Promise((resolve, reject) => {
-        wx.createSelectorQuery().in(this)
-          .select('#cardCv').fields({ node: true })
-          .exec(res => {
-            if (!res || !res[0] || !res[0].node) { reject(new Error('no card canvas')); return; }
-            buildCard(res[0].node, {
-              snapPath,
-              title: this.painting.title,
-              artist: this.painting.artist,
-              era: this.painting.era || '',
-              verse: shareVerse[this.painting.id] || '',
-              todName: this.data.todName,
-              mode: this.data.mode,
-              qrUrl: ASSET_BASE + 'wxacode.jpg',
-            }).then(resolve, reject);
-          });
-      }))
-      .then(cardPath => { wx.hideLoading(); this.saveToAlbum(cardPath); })
+      .then(snapPath => {
+        this._lastSnap = snapPath;
+        return new Promise((resolve, reject) => {
+          wx.createSelectorQuery().in(this)
+            .select('#cardCv').fields({ node: true })
+            .exec(res => {
+              if (!res || !res[0] || !res[0].node) { reject(new Error('no card canvas')); return; }
+              this._cardNode = res[0].node;
+              buildCard(this._cardNode, {
+                snapPath,
+                title: this.painting.title,
+                artist: this.painting.artist,
+                era: this.painting.era || '',
+                verse: shareVerse[this.painting.id] || '',
+                todName: this.data.todName,
+                mode: this.data.mode,
+                sign,
+                qrUrl: ASSET_BASE + 'wxacode.jpg',
+              }).then(resolve, reject);
+            });
+        });
+      })
+      .then(cardPath => {
+        wx.hideLoading();
+        this.setData({ cardImg: cardPath, cardShow: true, signName: sign });
+      })
       .catch(() => { wx.hideLoading(); wx.showToast({ title: '生成失败', icon: 'none' }); });
   },
+  onCardClose() { this.setData({ cardShow: false }); },
+  // 落款：input type=nickname，键盘会推荐微信昵称；填过记住，改一次即重新题款
+  onSignChange(e) {
+    const name = (e.detail.value || '').trim().slice(0, 12);
+    if (name === (this.data.signName || '')) return;
+    try { wx.setStorageSync('signName', name); } catch (err) {}
+    this.setData({ signName: name });
+    if (this._lastSnap && this._cardNode) {
+      buildCard(this._cardNode, {
+        snapPath: this._lastSnap,
+        title: this.painting.title,
+        artist: this.painting.artist,
+        era: this.painting.era || '',
+        verse: shareVerse[this.painting.id] || '',
+        todName: this.data.todName,
+        mode: this.data.mode,
+        sign: name,
+        qrUrl: ASSET_BASE + 'wxacode.jpg',
+      }).then(p => this.setData({ cardImg: p })).catch(() => {});
+    }
+  },
+  onCardShare() {
+    if (!this.data.cardImg) return;
+    if (wx.showShareImageMenu) {
+      wx.showShareImageMenu({ path: this.data.cardImg });
+    } else {
+      this.saveToAlbum(this.data.cardImg);
+      wx.showToast({ title: '已存相册，可去聊天发送', icon: 'none' });
+    }
+  },
+  onCardSave() { if (this.data.cardImg) this.saveToAlbum(this.data.cardImg); },
+  onCardRaw() { if (this._lastSnap) this.saveToAlbum(this._lastSnap); },
   saveToAlbum(filePath) {
     wx.saveImageToPhotosAlbum({
       filePath,

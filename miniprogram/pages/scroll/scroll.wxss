@@ -118,3 +118,23 @@
 
 /* 时刻画卡合成画布：挪到屏外，不参与布局与触摸 */
 .cardCv { position: fixed; left: 200vw; top: 0; width: 360px; height: 540px; pointer-events: none; }
+
+/* 时刻画卡预览浮层 */
+.cardMask { position: fixed; inset: 0; background: rgba(20,18,14,.62); z-index: 60;
+  display: flex; align-items: center; justify-content: center; }
+.cardPop { width: 74vw; max-width: 340px; background: #f7f2e7; border-radius: 10px;
+  padding: 14px 14px 12px; box-shadow: 0 12px 40px rgba(0,0,0,.35); position: relative; }
+.cardX { position: absolute; right: 6px; top: 0; font-size: 26px; color: #8d8678;
+  padding: 6px 10px; z-index: 2; }
+.cardPrev { width: 100%; border-radius: 6px; display: block; }
+.signRow { display: flex; align-items: center; margin: 10px 2px 0; }
+.signLabel { font-size: 12px; color: #8d8678; margin-right: 8px; }
+.signInput { flex: 1; font-size: 13px; color: #3a352c; border-bottom: 1px solid rgba(60,52,40,.18);
+  padding: 3px 2px; }
+.signPh { color: #b6ae9e; }
+.cardBtns { display: flex; gap: 10px; margin-top: 12px; }
+.cardBtn { flex: 1; text-align: center; padding: 9px 0; border-radius: 6px; font-size: 14px;
+  color: #3a352c; border: 1px solid rgba(60,52,40,.28); }
+.cardBtn.primary { background: #2c3844; color: #f3efe6; border-color: #2c3844; }
+.cardRaw { text-align: center; margin-top: 10px; font-size: 11px; color: #a29b8b;
+  text-decoration: underline; }

@@ -84,8 +84,9 @@ function buildCard(canvas, opts) {
     ctx.fillText(opts.verse || '', PAD, ty + 194);
 
     const d = new Date();
-    const dateLine = d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日 · '
+    let dateLine = d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日 · '
       + momentText(opts.todName, opts.mode);
+    if (opts.sign) dateLine += ' · ' + opts.sign + ' 同游';
     ctx.fillStyle = '#a29b8b';
     ctx.font = '32px ' + serif;
     ctx.fillText(dateLine, PAD, ty + 276);

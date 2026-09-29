@@ -36,7 +36,7 @@
       </view>
     </view>
 
-    <!-- 玩法卡片：每幅画第一次展卷后弹出（控制台「玩法」可再开）；点任意处关闭，随后画上圈出可点之处 -->
+<!-- 玩法卡片：每幅画第一次展卷后弹出（控制台「玩法」可再开）；点任意处关闭，随后画上圈出可点之处 -->
     <view class="guideMask" wx:if="{{guideShow}}" catchtouchstart="noop" catchtouchmove="noop"
       catchtouchend="onGuideOk" catchtap="onGuideOk">
       <view class="guideBox">
@@ -44,6 +44,7 @@
         <view class="guideRow serif"><text class="gIcon">拖</text>{{vertical ? '上下拖动展卷' : '左右拖动展卷'}}，双指缩放</view>
         <view class="guideRow serif" wx:for="{{guideTaps}}" wx:key="index"><text class="gIcon">点</text>{{item}}</view>
         <view class="guideRow serif"><text class="gIcon">释</text>点画上的朱点，看释文</view>
+        <view class="guideRow serif"><text class="gIcon">存</text>右上角存「此刻画卡」，可落款分享</view>
         <view class="guideNote" wx:if="{{hintNote}}">{{hintNote}}</view>
         <view class="guideBtn serif">知 道 了</view>
       </view>
@@ -112,4 +113,23 @@
     </view>
   </view>
   <view class="panelToggle serif" bindtap="onPanel">{{panelHidden?'展开':'收起'}}</view>
+
+  <!-- 时刻画卡预览浮层：所见即所得，可落款、发朋友、存相册 -->
+  <view class="cardMask" wx:if="{{cardShow}}" catchtouchmove="noop">
+    <view class="cardPop">
+      <view class="cardX" catchtap="onCardClose">×</view>
+      <image class="cardPrev" src="{{cardImg}}" mode="widthFix" show-menu-by-longpress/>
+      <view class="signRow">
+        <text class="signLabel serif">落款</text>
+        <input class="signInput serif" type="nickname" value="{{signName}}"
+          placeholder="点此署名（可用微信昵称）" placeholder-class="signPh"
+          bindblur="onSignChange" bindconfirm="onSignChange"/>
+      </view>
+      <view class="cardBtns">
+        <view class="cardBtn primary serif" catchtap="onCardShare">发给朋友</view>
+        <view class="cardBtn serif" catchtap="onCardSave">存入相册</view>
+      </view>
+      <view class="cardRaw serif" catchtap="onCardRaw">只存画面，不要卡片</view>
+    </view>
+  </view>
 </view>
