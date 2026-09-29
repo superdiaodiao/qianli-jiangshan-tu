@@ -81,15 +81,21 @@ function buildCard(canvas, opts) {
 
     ctx.fillStyle = '#6f6a5e';
     ctx.font = '40px ' + serif;
-    ctx.fillText(opts.verse || '', PAD, ty + 194);
+    ctx.fillText(opts.verse || '', PAD, ty + 186);
 
     const d = new Date();
-    let dateLine = d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日 · '
+    const dateLine = d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日 · '
       + momentText(opts.todName, opts.mode);
-    if (opts.sign) dateLine += ' · ' + opts.sign + ' 同游';
     ctx.fillStyle = '#a29b8b';
     ctx.font = '32px ' + serif;
-    ctx.fillText(dateLine, PAD, ty + 276);
+    ctx.fillText(dateLine, PAD, ty + 258);
+
+    // 落款独立成行，如题跋
+    if (opts.sign) {
+      ctx.fillStyle = '#5d5749';
+      ctx.font = '34px ' + serif;
+      ctx.fillText(opts.sign + ' 同游', PAD, ty + 336);
+    }
 
     // 朱红小印，收住整张卡
     ctx.fillStyle = '#bb4032';
