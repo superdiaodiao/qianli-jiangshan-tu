@@ -97,12 +97,12 @@ function buildCard(canvas, opts) {
       ctx.fillText(opts.sign + ' 同游', PAD, ty + 336);
     }
 
-    // 朱红小印，收住整张卡
-    ctx.fillStyle = '#bb4032';
-    ctx.font = '600 30px ' + serif;
-    ctx.fillText('卧游观画', PAD, H - 64);
-
-    // 小程序码：右下；没有码就只留署名
+    // 小程序码：右下；加载失败才退化为文字署名
+    if (!qr) {
+      ctx.fillStyle = '#bb4032';
+      ctx.font = '600 30px ' + serif;
+      ctx.fillText('卧游观画', PAD, H - 64);
+    }
     if (qr) {
       const qx = W - PAD - QR, qy = ty + 92;
       ctx.save();
