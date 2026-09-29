@@ -24,7 +24,7 @@
       <view class="fabCol">
         <view class="fab ico-save" catchtouchstart="noop" catchtouchmove="noop"
           catchtouchend="onSnapTap" catchtap="onSnapTap"></view>
-        <view class="fabTag serif">存图</view>
+        <view class="fabTag serif">留影</view>
       </view>
     </view>
 
