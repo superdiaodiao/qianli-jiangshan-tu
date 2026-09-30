@@ -2110,6 +2110,7 @@ class Engine {
     const H = this.tapHint; if (!H) return;
     H.t += dt; const T = 7;
     if (H.t > T) { this.tapHint = null; return; }
+    if (!c) return;
     const fade = Math.min(1, H.t * 3) * Math.min(1, (T - H.t) / 0.8);
     c.save();
     c.font = '13px serif'; c.textAlign = 'center'; c.textBaseline = 'top'; c.lineJoin = 'round';
@@ -2127,6 +2128,20 @@ class Engine {
       c.strokeText(p.label, x, y + 26); c.fillText(p.label, x, y + 26);
     }
     c.restore();
+  }
+
+  /* 截图用：隐去朱点与玩法圈，等一帧干净画面画完再兑现；截完务必 hideMarks(false)。
+     页面在后台时 rAF 可能停，最多等 300ms 就放行 */
+  hideMarks(on) {
+    this.marksN = Math.max(0, (this.marksN || 0) + (on ? 1 : -1));
+    this.marksOff = this.marksN > 0;
+    if (!on) return Promise.resolve();
+    return new Promise(res => {
+      let done = false;
+      const go = () => { if (!done) { done = true; res(); } };
+      (this._frameWait = this._frameWait || []).push(go);
+      setTimeout(go, 300);
+    });
   }
 
   /* ===== 主循环 ===== */
@@ -2216,8 +2231,10 @@ class Engine {
       c.fillRect(0, 0, this.stageW, this.stageH);
       c.globalCompositeOperation = 'source-over';
     }
-    this.drawPois(c);
-    this.drawTapHints(c, dt);
+    // 截图期间不画朱点和玩法圈（分享出去的是画，不是界面）；圈的计时照走
+    if (!this.marksOff) this.drawPois(c);
+    this.drawTapHints(this.marksOff ? null : c, dt);
+    if (this._frameWait && this._frameWait.length) { const w = this._frameWait; this._frameWait = []; w.forEach(f => f()); }
 
     // 缩略图取景框（有变化才通知页面，免得 setData 刷屏）；竖轴按纵向进度
     const left = this.VERT ? (S.y / this.DH * 100) : (S.x / this.DW * 100);

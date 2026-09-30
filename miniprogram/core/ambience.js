@@ -80,8 +80,9 @@ class Ambience {
     this.playing = false;
     this.bell = null; this.bellT = 8; this.bellOn = true;
     if (opts && opts.bell) {
-      // 寺钟：暮夜时分每隔一两分钟远远一声，单次播放不循环
-      try { this.bell = wx.createInnerAudioContext(); this.bell.src = base + 'bell.m4a'; this.bell.loop = false; this.bell.volume = 0.6; }
+      // 寺钟：远远一声，单次播放不循环。原先只在暮夜敲，白天进来开关亮着却一直不响（真机反馈"默认开了但没听到"）——
+      // 现全天都敲：开声后几秒先来一声，之后暮夜一两分钟一声，白天稀一些
+      try { this.bell = wx.createInnerAudioContext(); this.bell.src = base + 'bell.m4a'; this.bell.loop = false; this.bell.volume = 0.8; }
       catch (e) { this.bell = null; }
     }
     try {
@@ -114,8 +115,8 @@ class Ambience {
   update(wx_, snowy, windNow, lamp) {
     if (!this.ok || !this.playing) return;
     this.t += TICK;
-    if (this.bell && this.bellOn && lamp > 0.35 && (this.bellT -= TICK) <= 0) {
-      this.bellT = 50 + Math.random() * 60;
+    if (this.bell && this.bellOn && (this.bellT -= TICK) <= 0) {
+      this.bellT = (lamp > 0.35 ? 50 : 90) + Math.random() * 60;
       try { this.bell.seek(0); this.bell.play(); } catch (e) {}
     }
     const pr = wx_.precip;
@@ -136,10 +137,11 @@ class Ambience {
     this.all.forEach(vc => vc.tick(TICK));
   }
 
-  setBell(on) {
+  // soon：用户亲手点开的，一秒多就敲一声作回应；展卷自动开声时留几秒让环境音先淡入
+  setBell(on, soon) {
     this.bellOn = !!on;
     if (!on && this.bell) { try { this.bell.stop(); } catch (e) {} }
-    if (on) this.bellT = Math.min(this.bellT, 6);   // 刚打开很快就能听到一声
+    if (on) this.bellT = Math.min(this.bellT, soon ? 1.2 : 6);
   }
 
   destroy() {

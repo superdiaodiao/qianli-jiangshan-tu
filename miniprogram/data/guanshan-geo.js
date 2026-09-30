@@ -149,7 +149,7 @@ module.exports = { AU, AV, NT, ART_W, ART_H, HORIZON, LANES, BASE, CHIMNEYS, WAL
   DUCKS: { n: 8, avoid: [[3500, 138, 3670, 194]] },
   EGRETS: { n: 4, minV: 165 },          // minV：卷首远江是远景，不放白鹭（比例不对）                      // 白鹭：近岸浅水边立着，偶尔啄水、贴水飞到别处；仅白天                       // 野鸭：未冰的湖湾里慢游，拖 V 形水纹，偶尔扎猛子
   CROWS: { every: [8, 14], n: [2, 4] },  // 昏鸦：黄昏飞回枯树，天亮离去
-  BELL: true,                            // 暮夜偶闻寺钟
+  BELL: true,                            // 远闻寺钟：全天偶有，暮夜更勤
   HINT_TAP: '点松枝落雪惊雀 · 点湖面起涟漪',
   HINT_NOTE: '鸟兽为后添动景，略放大以便观看',   // 寒雀、野鸭、白鹭、昏鸦都不是原画所有，且大于画中比例
 };

@@ -211,7 +211,9 @@ Page({
     const on = !this.data.bellOn;
     this.setData({ bellOn: on });
     try { wx.setStorageSync('bellOff', !on); } catch (e) {}
-    if (this.ambience) this.ambience.setBell(on);
+    // 钟声挂在环境音上：聆音关着时点开钟声，顺手把聆音打开，否则开了也听不见
+    if (on && !this.data.soundOn) this.startSound();
+    if (this.ambience) this.ambience.setBell(on, true);
     wx.showToast({ title: on ? '钟声已开' : '钟声已关', icon: 'none', duration: 1000 });
   },
   onSnapTap() {
@@ -225,15 +227,20 @@ Page({
     if (!this.canvasNode) return;
     this.makeCard();
   },
-  // 截取当前画布（实时天光+天气，控制台不入画）
+  // 截取当前画布（实时天光+天气，控制台不入画；朱点、玩法圈也先隐去一帧再截）
   snapStage() {
-    return new Promise((resolve, reject) => {
+    const eng = this.engine;
+    const shot = () => new Promise((resolve, reject) => {
       wx.canvasToTempFilePath({
         canvas: this.canvasNode,
         success: res => resolve(res.tempFilePath),
         fail: reject,
       });
     });
+    if (!eng) return shot();
+    return eng.hideMarks(true).then(shot).then(
+      p => { eng.hideMarks(false); return p; },
+      e => { eng.hideMarks(false); throw e; });
   },
   makeCard() {
     wx.showLoading({ title: '题款钤印…', mask: true });
