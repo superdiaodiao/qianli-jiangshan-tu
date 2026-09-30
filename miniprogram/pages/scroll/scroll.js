@@ -204,14 +204,14 @@ Page({
     this._sndLock = Date.now();
     this.onSound();
   },
-  // 钟声开关：有的人不喜欢钟声；选择记在本地
+  // 钟声开关：有的人不喜欢钟声；选择记在本地。
+  // 按钮亮 = 聆音开且钟声没关（真听得到）。没亮时点它：钟声打开，聆音关着就一并打开
   onBellTap() {
     if (this._bellLock && Date.now() - this._bellLock < 500) return;
     this._bellLock = Date.now();
-    const on = !this.data.bellOn;
+    const on = !(this.data.bellOn && this.data.soundOn);
     this.setData({ bellOn: on });
     try { wx.setStorageSync('bellOff', !on); } catch (e) {}
-    // 钟声挂在环境音上：聆音关着时点开钟声，顺手把聆音打开，否则开了也听不见
     if (on && !this.data.soundOn) this.startSound();
     if (this.ambience) this.ambience.setBell(on, true);
     wx.showToast({ title: on ? '钟声已开' : '钟声已关', icon: 'none', duration: 1000 });

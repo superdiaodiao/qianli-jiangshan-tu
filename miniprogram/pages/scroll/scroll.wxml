@@ -97,7 +97,8 @@
         <view class="btn serif {{autoOn?'on':''}}" bindtap="onAuto">时辰自转</view>
         <view class="btn serif {{tourOn?'on':''}}" bindtap="onTour">巡游</view>
         <view class="btn serif {{zoomOn?'on':''}}" bindtap="onZoom">{{zoomLabel}}</view>
-        <view class="btn serif {{bellOn?'on':''}}" wx:if="{{hasBell}}" bindtap="onBellTap">钟声</view>
+        <!-- 钟声挂在聆音上：只有真听得到（聆音开 且 没关钟声）才点亮，免得右上角没开、这里却亮着 -->
+        <view class="btn serif {{bellOn&&soundOn?'on':''}}" wx:if="{{hasBell}}" bindtap="onBellTap">钟声</view>
         <view class="btn serif" bindtap="onGuide">玩法</view>
       </view>
       <view class="segBlock">
